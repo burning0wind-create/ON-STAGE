@@ -1,0 +1,792 @@
+{
+  "checkedAt": "2026-10-30",
+  "scope": "设计相关硕士专业与方向；非本科目录；只列本次核实范围",
+  "schools": [
+    {
+      "school": "清华大学",
+      "id": "tsinghua",
+      "colleges": [
+        {
+          "code": "080",
+          "name": "美术学院",
+          "programs": [
+            {
+              "code": "135700",
+              "name": "设计",
+              "degree": "专业学位",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "染织艺术设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "02",
+                  "name": "服装艺术设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "03",
+                  "name": "环境设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "04",
+                  "name": "陶瓷艺术设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "05",
+                  "name": "视觉传达设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "06",
+                  "name": "信息艺术设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "07",
+                  "name": "工业设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "08",
+                  "name": "工艺美术",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "09",
+                  "name": "科普艺术设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "10",
+                  "name": "动画",
+                  "admissionTypes": [
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "11",
+                  "name": "展示设计",
+                  "admissionTypes": [
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "12",
+                  "name": "艺术与科技",
+                  "admissionTypes": [
+                    "研究生复试"
+                  ],
+                  "studyMode": "非全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（推荐免试）",
+                "url": "https://yzbm.tsinghua.edu.cn/publish/s01/s0103/detail/996743a2-3adb-4416-ac66-1e272055e0ae/1?yxsdm=080&zslx=%271%27",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tsinghua.edu.cn/publish/s01/s0103/detail/996743a2-3adb-4416-ac66-1e272055e0ae/1?yxsdm=080&zslx=%271%27",
+                  "label": "2027年推荐免试目录"
+                },
+                {
+                  "url": "https://yzbm.tsinghua.edu.cn/publish/s02/s0203/detail/c0fb8664-255f-4d6f-bf40-a5893e3343ec?ksfs=&yxsdm=080",
+                  "label": "2027年全国统招目录"
+                }
+              ],
+              "note": "推免含01–09；统招另含10动画、11展示设计、12艺术与科技。12非全日制仅限本科毕业后有2年以上工作经验的定向生。"
+            },
+            {
+              "code": "140300",
+              "name": "设计学",
+              "degree": "学术学位",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "染织艺术设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "02",
+                  "name": "服装艺术设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "03",
+                  "name": "环境设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "04",
+                  "name": "陶瓷艺术设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "05",
+                  "name": "视觉传达设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "06",
+                  "name": "信息艺术设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "07",
+                  "name": "动画研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "08",
+                  "name": "工业设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "09",
+                  "name": "展示设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "10",
+                  "name": "工艺美术研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "11",
+                  "name": "清华大学-美国华盛顿大学“智慧互联”双硕士学位项目",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（推荐免试）",
+                "url": "https://yzbm.tsinghua.edu.cn/publish/s01/s0103/detail/996743a2-3adb-4416-ac66-1e272055e0ae/1?yxsdm=080&zslx=%271%27",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tsinghua.edu.cn/publish/s01/s0103/detail/996743a2-3adb-4416-ac66-1e272055e0ae/1?yxsdm=080&zslx=%271%27",
+                  "label": "2027年推荐免试目录"
+                },
+                {
+                  "url": "https://yzbm.tsinghua.edu.cn/publish/s02/s0203/detail/c0fb8664-255f-4d6f-bf40-a5893e3343ec?ksfs=&yxsdm=080",
+                  "label": "2027年全国统招目录"
+                }
+              ],
+              "note": "11为智慧互联双硕士项目，需同时满足双方录取要求。"
+            },
+            {
+              "code": "1403J1",
+              "name": "信息艺术设计",
+              "degree": "学术学位",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "信息艺术设计研究（交叉学科）-信息技术",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "02",
+                  "name": "信息艺术设计研究（交叉学科）-信息设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "03",
+                  "name": "信息艺术设计研究（交叉学科）-信息艺术",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（推荐免试）",
+                "url": "https://yzbm.tsinghua.edu.cn/publish/s01/s0103/detail/996743a2-3adb-4416-ac66-1e272055e0ae/1?yxsdm=080&zslx=%271%27",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tsinghua.edu.cn/publish/s01/s0103/detail/996743a2-3adb-4416-ac66-1e272055e0ae/1?yxsdm=080&zslx=%271%27",
+                  "label": "2027年推荐免试目录"
+                },
+                {
+                  "url": "https://yzbm.tsinghua.edu.cn/publish/s02/s0203/detail/c0fb8664-255f-4d6f-bf40-a5893e3343ec?ksfs=&yxsdm=080",
+                  "label": "2027年全国统招目录"
+                }
+              ],
+              "note": "交叉学科；由美术学院、计算机系、新闻与传播学院联合培养，美术学院代管学籍。"
+            },
+            {
+              "code": "085500",
+              "name": "机械",
+              "degree": "专业学位",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "工业设计工程领域",
+                  "admissionTypes": [
+                    "研究生复试"
+                  ],
+                  "studyMode": "非全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（全国统考）",
+                "url": "https://yzbm.tsinghua.edu.cn/publish/s02/s0203/detail/c0fb8664-255f-4d6f-bf40-a5893e3343ec?ksfs=&yxsdm=080",
+                "admissionTypes": [
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tsinghua.edu.cn/publish/s01/s0103/detail/996743a2-3adb-4416-ac66-1e272055e0ae/1?yxsdm=080&zslx=%271%27",
+                  "label": "2027年推荐免试目录"
+                },
+                {
+                  "url": "https://yzbm.tsinghua.edu.cn/publish/s02/s0203/detail/c0fb8664-255f-4d6f-bf40-a5893e3343ec?ksfs=&yxsdm=080",
+                  "label": "2027年全国统招目录"
+                }
+              ],
+              "note": "仅2027统招非全日制；需本科毕业后2年以上工作经验，不能列为推免应届生项目。"
+            }
+          ]
+        },
+        {
+          "code": "599",
+          "name": "清华大学深圳国际研究生院",
+          "programs": [
+            {
+              "code": "085400",
+              "name": "电子信息",
+              "degree": "专业学位",
+              "directions": [
+                {
+                  "code": "05",
+                  "name": "互动媒体设计与技术",
+                  "admissionTypes": [
+                    "推免面试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "10",
+                  "name": "互联网+创新设计",
+                  "admissionTypes": [
+                    "推免面试"
+                  ],
+                  "studyMode": "全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年推荐免试硕士招生目录",
+                "url": "https://yzbm.tsinghua.edu.cn/publish/s01/s0103/detail/996743a2-3adb-4416-ac66-1e272055e0ae/1?yxsdm=599&zslx=%271%27",
+                "admissionTypes": [
+                  "推免面试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "note": "这里只列电子信息专业内已核实的两个设计相关方向；不是两个独立招生专业，未核实的统考方向不作推断。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "school": "同济大学",
+      "id": "tongji",
+      "colleges": [
+        {
+          "code": "270",
+          "name": "设计创意学院",
+          "programs": [
+            {
+              "code": "085500",
+              "name": "机械",
+              "degree": "专业学位",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "交互设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "02",
+                  "name": "工业设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（全国统考）",
+                "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/270/085500?ksfs=21",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/index/2027",
+                  "label": "同济大学2027年硕士招生目录入口"
+                },
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/270/085500?ksfs=21",
+                  "label": "该专业2027年方向正文，含可推免标记"
+                }
+              ]
+            },
+            {
+              "code": "087200",
+              "name": "设计学",
+              "degree": "学术学位（工学）",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "人工智能与数据设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（全国统考）",
+                "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/270/087200?ksfs=21",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/index/2027",
+                  "label": "同济大学2027年硕士招生目录入口"
+                },
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/270/087200?ksfs=21",
+                  "label": "该专业2027年方向正文，含可推免标记"
+                }
+              ]
+            },
+            {
+              "code": "140300",
+              "name": "设计学",
+              "degree": "学术学位（交叉学科）",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "设计历史与理论",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（全国统考）",
+                "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/270/140300?ksfs=21",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/index/2027",
+                  "label": "同济大学2027年硕士招生目录入口"
+                },
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/270/140300?ksfs=21",
+                  "label": "该专业2027年方向正文，含可推免标记"
+                }
+              ]
+            },
+            {
+              "code": "135700",
+              "name": "设计",
+              "degree": "专业学位",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "交互设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "02",
+                  "name": "工业设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "03",
+                  "name": "媒体与传达设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "04",
+                  "name": "环境设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "05",
+                  "name": "产品服务体系设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "06",
+                  "name": "设计战略、管理与创业",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "07",
+                  "name": "媒体与传达设计Ⅱ",
+                  "admissionTypes": [
+                    "研究生复试"
+                  ],
+                  "studyMode": "非全日制"
+                },
+                {
+                  "code": "08",
+                  "name": "环境设计Ⅱ",
+                  "admissionTypes": [
+                    "研究生复试"
+                  ],
+                  "studyMode": "非全日制"
+                },
+                {
+                  "code": "09",
+                  "name": "产品服务体系设计Ⅱ",
+                  "admissionTypes": [
+                    "研究生复试"
+                  ],
+                  "studyMode": "非全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（全国统考）",
+                "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/270/135700?ksfs=21",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/index/2027",
+                  "label": "同济大学2027年硕士招生目录入口"
+                },
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/270/135700?ksfs=21",
+                  "label": "该专业2027年方向正文，含可推免标记"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "code": "200",
+          "name": "艺术与传媒学院",
+          "programs": [
+            {
+              "code": "135700",
+              "name": "设计",
+              "degree": "专业学位",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "智能媒体交互设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "02",
+                  "name": "综合数字媒介艺术设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "03",
+                  "name": "广告传播设计",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "04",
+                  "name": "创新交互媒体",
+                  "admissionTypes": [
+                    "研究生复试"
+                  ],
+                  "studyMode": "非全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（全国统考）",
+                "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/200/135700?ksfs=21",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/index/2027",
+                  "label": "同济大学2027年硕士招生目录入口"
+                },
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/200/135700?ksfs=21",
+                  "label": "该专业2027年方向正文，含可推免标记"
+                }
+              ]
+            },
+            {
+              "code": "140300",
+              "name": "设计学",
+              "degree": "学术学位",
+              "directions": [
+                {
+                  "code": "01",
+                  "name": "智能媒体交互设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "02",
+                  "name": "综合数字媒介艺术研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "03",
+                  "name": "艺术设计史论研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "04",
+                  "name": "文化数字化设计研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                },
+                {
+                  "code": "05",
+                  "name": "影视创作与理论研究",
+                  "admissionTypes": [
+                    "推免面试",
+                    "研究生复试"
+                  ],
+                  "studyMode": "全日制"
+                }
+              ],
+              "catalog": {
+                "year": "2027",
+                "label": "2027年硕士招生专业目录（全国统考）",
+                "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/200/140300?ksfs=21",
+                "admissionTypes": [
+                  "推免面试",
+                  "研究生复试"
+                ],
+                "checkedAt": "2026-10-30"
+              },
+              "sources": [
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/index/2027",
+                  "label": "同济大学2027年硕士招生目录入口"
+                },
+                {
+                  "url": "https://yzbm.tongji.edu.cn/zsml/sszsml/zsmlYjfx/2027/200/140300?ksfs=21",
+                  "label": "该专业2027年方向正文，含可推免标记"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "notes": [
+        "学院与专业由2027官网动态目录实际树数据核实；专业正文包含全国统考及可推免/不可推免标记。",
+        "当前2027目录未列310上海国际设计创新学院，不将其旧培养页当作2027独立招生目录。旧培养说明：https://shdi.tongji.edu.cn/16415/list.htm。",
+        "Design Thinking & Sustainable Future出现在2026-09-07培养总览图，但未出现在本次2027国内硕士全国统考目录的135700方向正文，故未加入默认年度列表。"
+      ]
+    }
+  ],
+  "evidenceNotes": [
+    "同济官网目录为动态iframe：入口HTML实际调用 POST /zsml/getTreeData，表单 nd=2027&zslb=1，学院270/200子节点对应专业code。",
+    "同济公开专业页URL来自官网resource/js/zsml.js?1.2.14的getZsmlYjfxUrl函数；已逐一读取正文，不是猜测链接。",
+    "部分web文本抓取器不能访问同济专业子页；本次以Node fetch直接读取学校公开正文核实。",
+    "清华不要使用旧的640cfabb...目录，那是130500旧代码版本，非当前2027。"
+  ]
+}

@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { SCHOOL_CATALOG } from './catalog.js';
 
 export const id = () => randomUUID();
 export const hash = (value) => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex');
@@ -16,13 +17,7 @@ export const DIMENSIONS = [
   { id: 'reflection', name: '创新与批判反思', weight: 10, anchors: ['只有结论，未说明取舍', '能说明局限或替代方案', '比较替代方案，反思局限与后续验证'] },
   { id: 'relevance', name: '切题与完整性', weight: 10, anchors: ['未回应核心问题', '回应主要要求，有遗漏', '直接回应问题，覆盖要求且详略合适'] },
 ];
-export const TEMPLATE_SEEDS = [
-  { id: 'custom', school: '自定义院校', major: '自定义设计专业' },
-  { id: 'hunan', school: '湖南大学', major: '设计学' },
-  { id: 'tsinghua', school: '清华大学', major: '设计学' },
-  { id: 'tongji', school: '同济大学', major: '设计学' },
-  { id: 'jiangnan', school: '江南大学', major: '设计学' },
-].map(t => ({ ...t, status: 'awaiting_materials', note: '院校名称仅为选择入口，非已核验招生模板。请上传对应年份、招生类型的考核细则及评分标准。', stages: STAGES }));
+export const TEMPLATE_SEEDS = [{id:'custom',school:'自定义院校',colleges:[]},...SCHOOL_CATALOG].map(t=>({...t,status:t.id==='custom'?'custom':'catalog_verified',note:'专业目录来源可查。请另上传对应年份、招生类型的面试考核细则及评分标准。',stages:STAGES}));
 export function fail(message, status = 400) { const e = new Error(message); e.status = status; throw e; }
 export function required(value, label, limit = 200) {
   if (typeof value !== 'string' || !value.trim() || value.length > limit) fail(`${label}需要填写，且不超过 ${limit} 字`);
@@ -40,7 +35,7 @@ export function validateStages(stages) {
   });
 }
 export function sessionIdentity(input) {
-  return { nickname: required(input.nickname, '昵称', 60), school: required(input.school, '院校'), major: required(input.major, '专业'), interviewTime: required(input.interviewTime, '面试时间', 60), attempt: Number(input.attempt) };
+  return { nickname: required(input.nickname, '昵称', 60), school: required(input.school, '院校'), major: required(input.major, '专业'), interviewTime: required(input.interviewTime, '面试时间', 60), attempt: Number(input.attempt),...(input.college?{college:input.college}:{}),...(input.programId?{programId:input.programId}:{}),...(input.directionId?{directionId:input.directionId}:{}) };
 }
 export function cacheKey(input) {
   const identity = sessionIdentity(input);
@@ -66,7 +61,7 @@ export function makePlan(profile, materials) {
   return {
     source: 'configured', generatedAt: new Date().toISOString(),
     layers: {
-      target: { school: profile.school, major: profile.major, admissionType: profile.admissionType, year: profile.year, rules: profile.rulesText },
+      target: { school: profile.school, college:profile.college, major: profile.major, majorCode:profile.majorCode,direction:profile.direction,catalog:profile.catalog,admissionType: profile.admissionType, year: profile.year, rules: profile.rulesText },
       candidate: { resume: materials.find(m => m.kind === 'resume')?.id ?? null, portfolio: materials.find(m => m.kind === 'portfolio')?.id ?? null },
       examiners: profile.stages.map(s => ({ stageId: s.id, role: `${s.name}虚拟练习考官` })),
       strategy: profile.stages.map(s => ({ ...s, opening: s.question, followupFocus: '依据回答追问设计依据、个人贡献、替代方案与验证' })),

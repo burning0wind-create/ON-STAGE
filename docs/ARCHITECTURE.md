@@ -65,3 +65,7 @@ channel：camera/audio/hand/gaze；type：device_state/speech_interval/tracking_
 ## 原型部署边界
 
 本机单用户，无账户认证、文件加密、云端持久化与生产级并发。不要把监听地址改为公网使用；生产部署需先完成身份与授权、用户数据隔离、留存/删除、上传隔离、请求限流和日志脱敏。
+
+## 学院与专业标识
+
+新档案保存 schoolId、collegeId、college、programId、majorCode、directionId、direction、degree、catalog 来源快照。已知学校必须按学院和专业 ID 归属校验。保留原五项身份字段，计算新场次缓存键时额外纳入学院、专业 ID 与方向；历史对比也按这些字段隔离。旧记录原样读取。详见 [CATALOG.md](CATALOG.md)。

@@ -1,9 +1,12 @@
 import { id,hash,fail,required,cacheKey,sessionIdentity,validateStages,validateOfficialRubric,makePlan,sourceRecord } from './domain.js';
 import { preparePlan,evaluateAnswer,evaluateOfficial,buildReport } from './ai.js';
+import { resolveCatalogTarget } from './catalog.js';
 
 export class OnStage {
   constructor(store,llm=null) {this.store=store;this.llm=llm;this.busy=new Set();}
   profile(input) {
+    let target;try {target=resolveCatalogTarget(input);}catch(e){fail(e.message);}
+    input={...input,...target};
     const identity=sessionIdentity(input); cacheKey(identity);
     if(!Array.isArray(input.materialIds)||input.materialIds.length>30) fail('材料列表无效');
     const materials=input.materialIds.map(id=>this.store.get('materials',id)??fail('材料不存在'));
@@ -12,7 +15,7 @@ export class OnStage {
     const rubricText=String(input.rubricText??'').trim()||materials.filter(m=>m.kind==='rubric').map(m=>m.text).join('\n');
     if(!rulesText || !rubricText) fail('每个院校专业需上传或填写考核细则和评分标准');
     if(rulesText.length>120000||rubricText.length>120000) fail('细则内容过长');
-    const profile={id:id(),...identity,year:required(String(input.year),'招生年份',10),admissionType:required(input.admissionType,'招生类型',80),stages:validateStages(input.stages),materialIds:input.materialIds,rulesText,rubricText,officialRubric:validateOfficialRubric(input.officialRubric),confirmed:true,createdAt:new Date().toISOString()};
+    const profile={id:id(),...identity,...target,year:required(String(input.year),'招生年份',10),admissionType:required(input.admissionType,'招生类型',80),stages:validateStages(input.stages),materialIds:input.materialIds,rulesText,rubricText,officialRubric:validateOfficialRubric(input.officialRubric),confirmed:true,createdAt:new Date().toISOString()};
     this.store.put('profiles',profile.id,profile);return profile;
   }
   async start(profileId) {
@@ -25,7 +28,7 @@ export class OnStage {
       if(existing) fail('此场身份已创建，请继续该场，或修改面试时间／模拟次数',409);
       const materials=profile.materialIds.map(id=>this.store.get('materials',id));
       const fingerprint=hash({profile,materials:materials.map(m=>m.hash)});
-      const session={id:id(),profile,materials,sources:this.store.list('sources').filter(s=>s.school===profile.school&&s.major===profile.major),createdAt:new Date().toISOString(),lastResumedAt:new Date().toISOString(),activeMs:0,status:'active',mode:this.llm?'llm':'demo',cacheKey:key,fingerprint,identityScope:hash([profile.nickname,profile.school,profile.major,profile.year,profile.admissionType]),rubricHash:hash([profile.rulesText,profile.rubricText,profile.officialRubric,profile.stages]),stageIndex:0,turns:[],sensors:[],warnings:[]};
+      const session={id:id(),profile,materials,sources:this.store.list('sources').filter(s=>s.school===profile.school&&s.major===profile.major&&(!s.college||s.college===profile.college)),createdAt:new Date().toISOString(),lastResumedAt:new Date().toISOString(),activeMs:0,status:'active',mode:this.llm?'llm':'demo',cacheKey:key,fingerprint,identityScope:hash([profile.nickname,profile.school,profile.college,profile.programId||profile.major,profile.directionId,profile.year,profile.admissionType]),rubricHash:hash([profile.rulesText,profile.rubricText,profile.officialRubric,profile.stages]),stageIndex:0,turns:[],sensors:[],warnings:[]};
       const cached=this.store.get('plans',key);
       let plan=cached?.fingerprint===fingerprint?cached.plan:null;
       if(!plan) {
@@ -98,7 +101,7 @@ export class OnStage {
     }
     return this.save(s);
   }
-  addSource(input) {const source={...sourceRecord(input),school:required(input.school,'院校'),major:required(input.major,'专业')};return this.store.put('sources',source.id,source);}
+  addSource(input) {const source={...sourceRecord(input),school:required(input.school,'院校'),college:input.college?required(input.college,'学院'):'',major:required(input.major,'专业')};return this.store.put('sources',source.id,source);}
   checkImprovement(sid,index,checked) {
     if(this.busy.has(sid)) fail('本场正在处理其他操作',409);
     const s=this.get(sid);

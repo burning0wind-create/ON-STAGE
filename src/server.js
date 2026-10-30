@@ -7,6 +7,7 @@ import { OnStage } from './app.js';
 import { modelFromEnv } from './ai.js';
 import { parseMaterial } from './materials.js';
 import { TEMPLATE_SEEDS,STAGES,DIMENSIONS,fail,required } from './domain.js';
+import { targetLabel } from '../public/catalog-state.js';
 
 const publicDir=fileURLToPath(new URL('../public/',import.meta.url));
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.json':'application/json; charset=utf-8'};
@@ -19,7 +20,7 @@ async function body(req,max=24*1024*1024) {
 async function input(req) {try{return JSON.parse((await body(req,1024*1024)).toString('utf8'));}catch(e){if(e.status)throw e;fail('JSON 请求格式无效');}}
 function reportMarkdown(s) {
   const r=s.report;
-  return `# ON STAGE · 升学面试复盘\n\n${s.profile.nickname} · ${s.profile.school} · ${s.profile.major}\n\n第 ${s.profile.attempt} 次 · ${s.profile.interviewTime}\n\n模式：${s.mode==='demo'?'流程演示':'模型评价'}\n\n训练得分：${r.trainingTotal??'未评估'}\n\n院校练习得分：${r.official.total??'未评估'}\n\n${r.note}\n\n`+r.dimensions.map(d=>`## ${d.name}：${d.score??'待评估'} / 5\n\n`+d.evidence.map(e=>`> ${e.quote.replace(/\n/g,'\n> ')}\n\n${e.reason}\n\n建议：${e.improvement}`).join('\n\n')).join('\n\n')+'\n\n## 对话记录\n\n'+s.turns.map(t=>`**${t.role==='candidate'?'学生':'考官'}**：${t.content}`).join('\n\n');
+  return `# ON STAGE · 升学面试复盘\n\n${s.profile.nickname} · ${targetLabel(s.profile)}\n\n第 ${s.profile.attempt} 次 · ${s.profile.interviewTime}\n\n模式：${s.mode==='demo'?'流程演示':'模型评价'}\n\n训练得分：${r.trainingTotal??'未评估'}\n\n院校练习得分：${r.official.total??'未评估'}\n\n${r.note}\n\n`+r.dimensions.map(d=>`## ${d.name}：${d.score??'待评估'} / 5\n\n`+d.evidence.map(e=>`> ${e.quote.replace(/\n/g,'\n> ')}\n\n${e.reason}\n\n建议：${e.improvement}`).join('\n\n')).join('\n\n')+'\n\n## 对话记录\n\n'+s.turns.map(t=>`**${t.role==='candidate'?'学生':'考官'}**：${t.content}`).join('\n\n');
 }
 export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=modelFromEnv(),env=process.env}={}) {
   const app=new OnStage(store,llm);
@@ -74,11 +75,11 @@ export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=
       if(route==='/api/sources'&&req.method==='POST') return json(res,app.addSource(await input(req)),201);
       if(route==='/api/search'&&req.method==='POST') {
         if(!env.SEARCH_API_KEY) fail('尚未配置联网检索，可手动添加官方链接与经验贴',503);
-        const p=await input(req),school=required(p.school,'院校'),major=required(p.major,'专业');
-        const response=await fetch('https://api.tavily.com/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:env.SEARCH_API_KEY,query:`${school} ${major} ${String(p.year??'').slice(0,10)} 面试 考核细则 作品集 经验`,max_results:5}),signal:AbortSignal.timeout(20000)});
+        const p=await input(req),school=required(p.school,'院校'),major=required(p.major,'专业'),college=String(p.college??'').slice(0,200);
+        const response=await fetch('https://api.tavily.com/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({api_key:env.SEARCH_API_KEY,query:`${school} ${college} ${major} ${String(p.year??'').slice(0,10)} 面试 考核细则 作品集 经验`,max_results:5}),signal:AbortSignal.timeout(20000)});
         if(!response.ok) fail('检索服务暂不可用',502);
         const data=await response.json();
-        return json(res,{results:(data.results??[]).map(x=>({title:x.title,url:x.url,summary:x.content,type:'experience',school,major,retrievedAt:new Date().toISOString(),verified:false,confidence:'pending_verification'}))});
+        return json(res,{results:(data.results??[]).map(x=>({title:x.title,url:x.url,summary:x.content,type:'experience',school,college,major,retrievedAt:new Date().toISOString(),verified:false,confidence:'pending_verification'}))});
       }
       if(route.startsWith('/api/')) fail('接口不存在',404);
       if(req.method!=='GET'&&req.method!=='HEAD') fail('方法不支持',405);

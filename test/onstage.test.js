@@ -15,7 +15,7 @@ function fixture(t,llm=null) {
   t.after(()=>{const checked=path.resolve(root);if(!checked.startsWith(path.resolve(os.tmpdir())+path.sep)||!path.basename(checked).startsWith('onstage-test-'))throw Error('Unsafe test cleanup');fs.rmSync(checked,{recursive:true,force:true});});
   const store=new Store(root),app=new OnStage(store,llm);
   for(const kind of ['resume','portfolio'])store.put('materials',kind,{id:kind,kind,name:`${kind}.txt`,text:'设计研究项目：个人负责访谈、原型与验证。',status:'parsed',hash:kind});
-  const input={nickname:'练习同学',school:'测试设计学院',major:'交互设计',year:'2027',admissionType:'推免面试',interviewTime:'2026-11-02T10:00:00+08:00',attempt:1,materialIds:['resume','portfolio'],rulesText:'本测试考察作品讲述与英语表达。',rubricText:'仅用于测试的评分文本。',stages:STAGES.slice(0,2)};
+  const input={nickname:'练习同学',school:'测试设计学院',college:'设计学院',major:'交互设计',year:'2027',admissionType:'推免面试',interviewTime:'2026-11-02T10:00:00+08:00',attempt:1,materialIds:['resume','portfolio'],rulesText:'本测试考察作品讲述与英语表达。',rubricText:'仅用于测试的评分文本。',stages:STAGES.slice(0,2)};
   return {root,store,app,input};
 }
 function scored(answer='我通过访谈形成研究问题。') {return {dimensions:DIMENSIONS.map(d=>({id:d.id,score:3,quote:answer,reason:'说明了基本研究步骤。',improvement:'补充验证与反思。'})),feedback:'请补充验证。',followup:'如何验证你的判断？'};}
@@ -114,7 +114,7 @@ test('HTTP 完整链路、上传、导出、跨来源请求与路径边界',asyn
   assert.equal((await fetch(base+'/%2e%2e%2f.env')).status,404);
   const form=new FormData();form.append('kind','resume');form.append('file',new Blob(['测试简历'],{type:'text/plain'}),'resume.txt');const upload=await fetch(base+'/api/materials',{method:'POST',body:form});assert.equal(upload.status,201);
   const material=await upload.json();assert.equal((await fetch(base+`/api/materials/${material.id}/file`)).status,200);
-  const profile={nickname:'测试',school:'测试学校',major:'设计学',year:'2027',admissionType:'复试',interviewTime:'2026-12-01T09:00+08:00',attempt:1,materialIds:[material.id,'portfolio'],rulesText:'测试细则',rubricText:'测试标准',stages:[STAGES[1]]};
+  const profile={nickname:'测试',school:'测试学校',college:'设计学院',major:'设计学',year:'2027',admissionType:'复试',interviewTime:'2026-12-01T09:00+08:00',attempt:1,materialIds:[material.id,'portfolio'],rulesText:'测试细则',rubricText:'测试标准',stages:[STAGES[1]]};
   const send=async(url,body)=>{const r=await fetch(base+url,{method:'POST',body:JSON.stringify(body)});assert.ok(r.ok);return r.json();};
   const p=await send('/api/profiles',profile);let s=await send('/api/sessions',{profileId:p.id});s=await send(`/api/sessions/${s.id}/answer`,{questionId:s.turns.at(-1).id,answer:'本项目由我负责访谈与验证。'});await send(`/api/sessions/${s.id}/action`,{action:'finish'});
   const exported=await fetch(base+`/api/sessions/${s.id}/export?format=md`);assert.equal(exported.status,200);assert.match(await exported.text(),/ON STAGE/);
