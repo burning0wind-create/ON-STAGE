@@ -1,6 +1,6 @@
 {
   "name": "on-stage",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "开场 ON STAGE · 设计学相关专业学生的多模态升学面试排练与复盘原型",
   "private": true,
   "type": "module",

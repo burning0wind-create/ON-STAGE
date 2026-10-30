@@ -1,6 +1,8 @@
 import { id,hash,fail,required,cacheKey,sessionIdentity,validateStages,validateOfficialRubric,makePlan,sourceRecord } from './domain.js';
-import { preparePlan,evaluateAnswer,evaluateOfficial,buildReport } from './ai.js';
+import { preparePlan,evaluateAnswer,evaluateOfficial,buildReport,unassessedEvaluation } from './ai.js';
 import { resolveCatalogTarget } from './catalog.js';
+import { buildTrainingRubric } from '../public/rubrics.js';
+import { getExamRecord } from './exam-library.js';
 
 export class OnStage {
   constructor(store,llm=null) {this.store=store;this.llm=llm;this.busy=new Set();}
@@ -15,11 +17,19 @@ export class OnStage {
     const rubricText=String(input.rubricText??'').trim()||materials.filter(m=>m.kind==='rubric').map(m=>m.text).join('\n');
     if(!rulesText || !rubricText) fail('每个院校专业需上传或填写考核细则和评分标准');
     if(rulesText.length>120000||rubricText.length>120000) fail('细则内容过长');
-    const profile={id:id(),...identity,...target,year:required(String(input.year),'招生年份',10),admissionType:required(input.admissionType,'招生类型',80),stages:validateStages(input.stages),materialIds:input.materialIds,rulesText,rubricText,officialRubric:validateOfficialRubric(input.officialRubric),confirmed:true,createdAt:new Date().toISOString()};
+    let examLibrary=null;
+    if(input.examLibraryId){
+      let record;try{record=getExamRecord(input.examLibraryId,{...target,year:input.year,admissionType:input.admissionType});}catch(e){fail(e.message);}
+      const normalized=items=>(items??[]).map(({name,weight,criterion})=>({name,weight,criterion}));
+      examLibrary={...record,userEdited:rulesText!==record.rulesText||rubricText!==record.rubricText||JSON.stringify(normalized(input.officialRubric))!==JSON.stringify(normalized(record.officialRubric))};
+    }
+    const profile={id:id(),...identity,...target,trainingRubric:buildTrainingRubric(target),year:required(String(input.year),'招生年份',10),admissionType:required(input.admissionType,'招生类型',80),stages:validateStages(input.stages),materialIds:input.materialIds,rulesText,rubricText,officialRubric:validateOfficialRubric(input.officialRubric),confirmed:true,createdAt:new Date().toISOString()};
+    profile.examLibraryId=examLibrary?.id??null;profile.examLibrary=examLibrary;
     this.store.put('profiles',profile.id,profile);return profile;
   }
   async start(profileId) {
     const profile=this.store.get('profiles',profileId)??fail('设置不存在',404);
+    profile.trainingRubric??=buildTrainingRubric(profile);
     const key=cacheKey(profile);
     if(this.busy.has(key)) fail('正在生成本场计划，请稍候',409);
     this.busy.add(key);
@@ -28,7 +38,7 @@ export class OnStage {
       if(existing) fail('此场身份已创建，请继续该场，或修改面试时间／模拟次数',409);
       const materials=profile.materialIds.map(id=>this.store.get('materials',id));
       const fingerprint=hash({profile,materials:materials.map(m=>m.hash)});
-      const session={id:id(),profile,materials,sources:this.store.list('sources').filter(s=>s.school===profile.school&&s.major===profile.major&&(!s.college||s.college===profile.college)),createdAt:new Date().toISOString(),lastResumedAt:new Date().toISOString(),activeMs:0,status:'active',mode:this.llm?'llm':'demo',cacheKey:key,fingerprint,identityScope:hash([profile.nickname,profile.school,profile.college,profile.programId||profile.major,profile.directionId,profile.year,profile.admissionType]),rubricHash:hash([profile.rulesText,profile.rubricText,profile.officialRubric,profile.stages]),stageIndex:0,turns:[],sensors:[],warnings:[]};
+      const session={id:id(),profile,rubric:structuredClone(profile.trainingRubric),materials,sources:this.store.list('sources').filter(s=>s.school===profile.school&&s.major===profile.major&&(!s.college||s.college===profile.college)),createdAt:new Date().toISOString(),lastResumedAt:new Date().toISOString(),activeMs:0,status:'active',mode:this.llm?'llm':'demo',cacheKey:key,fingerprint,identityScope:hash([profile.nickname,profile.school,profile.college,profile.programId||profile.major,profile.directionId,profile.year,profile.admissionType]),rubricHash:hash([profile.rulesText,profile.rubricText,profile.officialRubric,profile.trainingRubric,profile.stages]),stageIndex:0,turns:[],sensors:[],warnings:[]};
       const cached=this.store.get('plans',key);
       let plan=cached?.fingerprint===fingerprint?cached.plan:null;
       if(!plan) {
@@ -60,9 +70,10 @@ export class OnStage {
       if(s.turns.length>=160) fail('本场已达到问答上限，请结束并复盘');
       const answer=required(input.answer,'回答',20000);
       if(input.questionId!==question.id) fail('题目已更新，请刷新后继续',409);
+      const responseId=id(),evidenceQuestion={...question,responseId};
       let evaluation;
-      try {evaluation=await evaluateAnswer(this.llm,s,question,answer);} catch {evaluation=await evaluateAnswer(null,s,question,answer);evaluation.mode='unavailable';evaluation.feedback='模型评价暂不可用；回答已保存，本题不计分。';}
-      s.turns.push({id:id(),role:'candidate',stageId:question.stageId,questionId:question.id,content:answer,createdAt:new Date().toISOString(),durationMs:Math.min(Math.max(Number(input.durationMs)||0,0),3600000),inputMode:input.inputMode==='speech'?'speech':'text',evaluation});
+      try {evaluation=await evaluateAnswer(this.llm,s,evidenceQuestion,answer);} catch {evaluation=s.rubric?unassessedEvaluation(s,evidenceQuestion,{mode:'unavailable',feedback:'模型评价暂不可用；回答已保存，本题不计分。'}):await evaluateAnswer(null,s,question,answer);evaluation.mode='unavailable';evaluation.feedback='模型评价暂不可用；回答已保存，本题不计分。';}
+      s.turns.push({id:responseId,role:'candidate',stageId:question.stageId,questionId:question.id,content:answer,createdAt:new Date().toISOString(),durationMs:Math.min(Math.max(Number(input.durationMs)||0,0),3600000),inputMode:input.inputMode==='speech'?'speech':'text',evaluation});
       return this.save(s);
     });
   }
@@ -72,9 +83,15 @@ export class OnStage {
       if(action==='pause') {if(s.status==='active')s.activeMs+=Date.now()-Date.parse(s.lastResumedAt);s.status='paused';return this.save(s);}
       if(action==='resume') {if(s.status==='paused')s.lastResumedAt=new Date().toISOString();s.status='active';return this.save(s);}
       if(s.status!=='active') fail('请先恢复面试');
-      if(action==='followup') {
+      if(action==='skip') {
+        const question=s.turns.at(-1);if(question?.role!=='interviewer')fail('本题已处理，请选择继续追问或进入下一环节');
+        if(s.turns.length>=160)fail('本场已达到问答上限，请结束并复盘');
+        const responseId=id();
+        s.turns.push({id:responseId,role:'candidate',stageId:question.stageId,questionId:question.id,content:'',skipped:true,inputMode:'skipped',createdAt:new Date().toISOString(),evaluation:unassessedEvaluation(s,{...question,responseId},{mode:s.mode,status:'skipped'})});
+      }else if(action==='followup') {
         const last=s.turns.at(-1);
         if(last?.role!=='candidate') fail('请先回答当前问题');
+        if(s.turns.length>=160)fail('本场已达到问答上限，请结束并复盘');
         const followup=last.evaluation.followup||'请进一步说明你的判断依据。';
         s.turns.push({id:id(),role:'interviewer',stageId:last.stageId,content:followup,createdAt:new Date().toISOString()});
       } else if(action==='next') {

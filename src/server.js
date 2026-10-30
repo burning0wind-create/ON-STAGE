@@ -8,6 +8,8 @@ import { modelFromEnv } from './ai.js';
 import { parseMaterial } from './materials.js';
 import { TEMPLATE_SEEDS,STAGES,DIMENSIONS,fail,required } from './domain.js';
 import { targetLabel } from '../public/catalog-state.js';
+import { getExamLibrary } from './exam-library.js';
+import { reportMarkdown } from './report-export.js';
 
 const publicDir=fileURLToPath(new URL('../public/',import.meta.url));
 const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.json':'application/json; charset=utf-8'};
@@ -18,10 +20,6 @@ async function body(req,max=24*1024*1024) {
   return Buffer.concat(chunks);
 }
 async function input(req) {try{return JSON.parse((await body(req,1024*1024)).toString('utf8'));}catch(e){if(e.status)throw e;fail('JSON 请求格式无效');}}
-function reportMarkdown(s) {
-  const r=s.report;
-  return `# ON STAGE · 升学面试复盘\n\n${s.profile.nickname} · ${targetLabel(s.profile)}\n\n第 ${s.profile.attempt} 次 · ${s.profile.interviewTime}\n\n模式：${s.mode==='demo'?'流程演示':'模型评价'}\n\n训练得分：${r.trainingTotal??'未评估'}\n\n院校练习得分：${r.official.total??'未评估'}\n\n${r.note}\n\n`+r.dimensions.map(d=>`## ${d.name}：${d.score??'待评估'} / 5\n\n`+d.evidence.map(e=>`> ${e.quote.replace(/\n/g,'\n> ')}\n\n${e.reason}\n\n建议：${e.improvement}`).join('\n\n')).join('\n\n')+'\n\n## 对话记录\n\n'+s.turns.map(t=>`**${t.role==='candidate'?'学生':'考官'}**：${t.content}`).join('\n\n');
-}
 export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=modelFromEnv(),env=process.env}={}) {
   const app=new OnStage(store,llm);
   const server=http.createServer(async(req,res)=>{
@@ -35,6 +33,7 @@ export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=
       if(req.headers.origin && ![`http://${host}`].includes(req.headers.origin)) fail('请求来源无效',403);
       const url=new URL(req.url,`http://${host}`), route=url.pathname;
       if(route==='/api/config'&&req.method==='GET') return json(res,{name:'ON STAGE',mode:llm?'llm':'demo',searchConfigured:!!env.SEARCH_API_KEY,templates:TEMPLATE_SEEDS,stages:STAGES,dimensions:DIMENSIONS});
+      if(route==='/api/exam-library'&&req.method==='GET') return json(res,getExamLibrary());
       if(route==='/api/materials'&&req.method==='POST') {
         const bytes=await body(req);
         let form;try{form=await new Request('http://localhost/upload',{method:'POST',headers:{'content-type':req.headers['content-type']??''},body:bytes}).formData();}catch{fail('上传表单无效');}

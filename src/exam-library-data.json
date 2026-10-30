@@ -1,0 +1,147 @@
+{
+  "version": "official-exams-2026-10-30-v1",
+  "checkedAt": "2026-10-30",
+  "scope": "本原型四所目标学校、七个学院的设计相关硕士；八条已核验规则及一条待核验线索。按入学年份与招生类型分别保存。",
+  "records": [
+    {
+      "id": "hunan-design-2027-recommended",
+      "schoolId": "hunan", "school": "湖南大学", "collegeId": "hunan-design", "college": "设计艺术学院",
+      "programCodes": ["140300", "135700"], "directionIds": [], "year": 2027, "admissionType": "推免面试",
+      "title": "2027年接收推荐免试研究生综合考核细则",
+      "url": "https://design.hnu.edu.cn/info/1031/9308.htm", "publishedAt": "2026-09-10", "checkedAt": "2026-10-30", "verification": "official", "loadable": true,
+      "stages": [{"name":"线下面试","scope":"interview","minutes":null,"minMinutes":20,"maxMinutes":null}],
+      "assessmentItems": [
+        {"name":"材料审核","scope":"materials","maxScore":100,"weight":null,"description":"用于筛选进入面试的名单，不计入综合考核总成绩。"},
+        {"name":"外语能力测试","scope":"interview","maxScore":20,"weight":20,"description":"观察听力理解、表述连贯及语言运用；仅有转写时不能核实听力和发音。"},
+        {"name":"专业素质和能力测试","scope":"interview","maxScore":40,"weight":40,"description":"结合专业知识、应用能力和作品集，随机选取两件作品问答。"},
+        {"name":"综合素质测试","scope":"interview","maxScore":40,"weight":40,"description":"关注推理、表达、创新、实践和研究规划等；政审另作非量化要求。"},
+        {"name":"思想政治素质和道德品质","scope":"exclusion","maxScore":null,"weight":null,"description":"不计入总成绩；校方考核不合格者不予录取。原型不依据面貌、声音或推测作该结论。"}
+      ],
+      "totalScore":100,"passThreshold":60,"formula":"综合考核总成绩＝面试成绩。材料审核100分仅用于入围筛选。",
+      "exclusions":["思想政治素质和道德品质由校方考核，结果不量化计分。"],
+      "notes":["本条仅匹配2027年推荐免试硕士，不将同页直博招生条件套用到硕士。","20/40/40是面试内部权重；ON STAGE专业能力训练表另行显示。"],
+      "rulesText":"2027年湖南大学设计艺术学院推免硕士：线下面试至少20分钟；材料审核用于入围。面试100分、60分合格，综合考核成绩等于面试成绩。作品集随机抽取两件作品进行专业问答。思想品德另作非量化考核。官网核对：2026-10-30。",
+      "rubricText":"官网公布面试内部结构：外语能力20分；专业素质和能力40分；综合素质40分，共100分。此处仅整理公开结构；具体评分仍须有本场回答证据，未观察到不能填零。仅有转写时，外语听力与发音等不可核实部分保留未评估。",
+      "officialRubric":[
+        {"id":"hnu_foreign","name":"外语能力测试","weight":20,"criterion":"依据本场可验证的外语问答，观察理解、连贯性与语言运用。转写不能支持听力、发音或声音表现结论，缺失证据时保持未评估。"},
+        {"id":"hnu_professional","name":"专业素质和能力测试","weight":40,"criterion":"依据专业问答和两件作品的讲解，观察知识运用、设计过程、方法与工具、方案细节及可行性；区分个人自述与已核实证据。"},
+        {"id":"hnu_comprehensive","name":"综合素质测试","weight":40,"criterion":"依据本场具体回答观察逻辑、表达、创新、社会实践和研究规划。不能从转写、面部或声音推断心理健康、人格或政治立场；校方非量化考核保留未评估。"}
+      ]
+    },
+    {
+      "id":"jiangnan-design-2027-recommended","schoolId":"jiangnan","school":"江南大学","collegeId":"jiangnan-003","college":"设计学院",
+      "programCodes":["140300","135700","130100"],"directionIds":[],"year":2027,"admissionType":"推免面试",
+      "title":"设计学院2027年接收推荐免试研究生工作细则","url":"https://sodcn.jiangnan.edu.cn/info/1074/7674.htm","publishedAt":"2026-09-13","checkedAt":"2026-10-30","verification":"official","loadable":true,
+      "stages":[{"name":"线上面试","scope":"interview","minutes":null,"minMinutes":null,"maxMinutes":null}],
+      "assessmentItems":[
+        {"name":"专业知识结构、综合能力、外语听说","scope":"interview","maxScore":100,"weight":null,"description":"三类考察内容共用面试100分；官网未公布各项占比。"},
+        {"name":"材料审核","scope":"materials","maxScore":null,"weight":null,"description":"审核通过后进入复试，材料成绩不计入综合考核。"},
+        {"name":"思想政治素质和品德","scope":"exclusion","maxScore":null,"weight":null,"description":"结果不量化计分，由校方考核。"}
+      ],"totalScore":100,"passThreshold":60,"formula":"按专业的复试成绩排序；材料审核不计入综合考核。",
+      "exclusions":["卓越工程师专项另有专项面试，不适用本条普通推免规则。","思想政治素质和品德校方考核不通过者不予录取。"],
+      "notes":["面试内部权重未公开，不能自动均分。","仅包含目录所列硕士；不适用同页本科直博规则。"],
+      "rulesText":"江南大学设计学院2027普通推免硕士采用线上面试，考察专业知识结构、综合能力及外语听说，面试100分、低于60分不合格。材料审核不计入综合考核。思想品德由校方另行非量化考核。卓工专项另行安排。",
+      "rubricText":"官网公开面试总分100分及专业知识结构、综合能力、外语听说等内容，未公布内部维度权重。ON STAGE不补造占比，官网量表保持空白；可另用已标识的专业训练评分表。",
+      "officialRubric":[]
+    },
+    {
+      "id":"jiangnan-digital-2027-recommended","schoolId":"jiangnan","school":"江南大学","collegeId":"jiangnan-037","college":"数字科技与创意设计学院",
+      "programCodes":["140300","135700","085507"],"directionIds":[],"year":2027,"admissionType":"推免面试",
+      "title":"数字科技与创意设计学院2027年接收推荐免试研究生工作细则","url":"https://dtid.jiangnan.edu.cn/info/1038/1893.htm","publishedAt":"2026-09-13","checkedAt":"2026-10-30","verification":"official","loadable":true,
+      "stages":[{"name":"线上面试","scope":"interview","minutes":null,"minMinutes":null,"maxMinutes":null}],
+      "assessmentItems":[
+        {"name":"专业知识结构、综合能力、外语听说","scope":"interview","maxScore":100,"weight":null,"description":"面试共100分，内部各项占比未公布。"},
+        {"name":"材料审核","scope":"materials","maxScore":null,"weight":null,"description":"只用于复试入围；成绩不计入综合考核。"},
+        {"name":"思想政治素质和品德","scope":"exclusion","maxScore":null,"weight":null,"description":"校方另行考核，结果不作量化计分。"}
+      ],"totalScore":100,"passThreshold":60,"formula":"根据专业名额按复试成绩排序；材料成绩不计入综合考核。",
+      "exclusions":["卓工专项面试时间与方式另行公布，不沿用本条普通推免规则。","思想政治素质和品德校方考核不通过者不予录取。"],
+      "notes":["这是数字科技与创意设计学院的独立规则，不与设计学院混用。","官网未公布面试内部权重、各环节时长。"],
+      "rulesText":"江南大学数字科技与创意设计学院2027普通推免硕士采用线上面试，考察专业知识结构、综合能力及外语听说，满分100分、低于60分不合格。材料审核只筛选入围，不计入综合考核。思想品德由校方非量化考核；卓工专项另行安排。",
+      "rubricText":"官网未公布面试各维度占比，仅明确总分100分与考察内容。保持官方结构化权重为空，训练反馈使用单独标识的ON STAGE评分表。",
+      "officialRubric":[]
+    },
+    {
+      "id":"tsinghua-art-2027-recommended","schoolId":"tsinghua","school":"清华大学","collegeId":"tsinghua-080","college":"美术学院",
+      "programCodes":["135700","140300","1403J1"],"directionIds":[],"year":2027,"admissionType":"推免面试",
+      "title":"美术学院2027年硕士推免生考核及录取办法","url":"https://yzbm.tsinghua.edu.cn/publish/s01/s0101/detail/68014c26-d4dc-4b9f-93a0-878e7913323b?yxsdm=080","publishedAt":"2026-09-02","checkedAt":"2026-10-30","verification":"official","loadable":true,
+      "stages":[{"name":"现场面试（自述、外语测试、问答）","scope":"interview","minutes":null,"minMinutes":20,"maxMinutes":null}],
+      "assessmentItems":[
+        {"name":"综合面试","scope":"interview","maxScore":100,"weight":null,"description":"关注基本素养、学术能力和学术志趣；内部权重未公开。"},
+        {"name":"材料审查","scope":"materials","maxScore":100,"weight":null,"description":"五位以上专家按百分制独立评价、取均分，用于筛选入围。"}
+      ],"totalScore":100,"passThreshold":60,"formula":"综合考核成绩等于面试成绩；材料审查不作为面试内部维度。",
+      "exclusions":["仅用于本条普通硕士推免适用范围，联合培养项目仍须另核双方要求。"],
+      "notes":["面试不少于20分钟，包含考生自述、外语测试和问答。","基本素养、学术能力、学术志趣未公布分项比例。"],
+      "rulesText":"清华大学美术学院2027硕士推免采用现场面试，不少于20分钟，包含考生自述、外语测试和问答。综合面试100分，低于60分不予录取；综合考核成绩等于面试成绩。材料审查100分用于入围筛选。联合培养项目须另核项目要求。",
+      "rubricText":"官网考察基本素养、学术能力和学术志趣，但未公开面试内部权重。官方量表不自动补齐；ON STAGE目标专业训练表与此分开。",
+      "officialRubric":[]
+    },
+    {
+      "id":"tsinghua-sigs-imdt-2027-recommended","schoolId":"tsinghua","school":"清华大学","collegeId":"tsinghua-599","college":"深圳国际研究生院",
+      "programCodes":["085400"],"directionIds":["05"],"directionNames":["互动媒体设计与技术"],"year":2027,"admissionType":"推免面试",
+      "title":"2027互动媒体设计与技术推免硕士考核及录取办法","url":"https://www.sigs.tsinghua.edu.cn/2026/0813/c7770a292543/page.htm","documentUrl":"https://www.sigs.tsinghua.edu.cn/_upload/article/files/c1/48/1de6ae6c44c4b547939e22271daa/9fa723d8-4373-4f2c-afc6-3f183c426f9d.pdf","publishedAt":"2026-08-21","checkedAt":"2026-10-30","verification":"official","loadable":true,
+      "stages":[{"name":"现场面试","scope":"interview","minutes":null,"minMinutes":20,"maxMinutes":null}],
+      "assessmentItems":[
+        {"name":"综合面试","scope":"interview","maxScore":100,"weight":null,"description":"基本素养、学术能力和学术志趣等；内部权重未公布。"},
+        {"name":"材料审查","scope":"materials","maxScore":100,"weight":null,"description":"五位以上专家评审取均分，用于入围筛选。"}
+      ],"totalScore":100,"passThreshold":null,"formula":"综合考核成绩等于面试成绩。",
+      "exclusions":["不适用于工程硕博士培养改革专项。","只适用于电子信息下互动媒体设计与技术方向，不套用到其他085400方向。"],
+      "notes":["PDF未公开面试内部权重与及格线，不能套用美术学院60分。"],
+      "rulesText":"清华大学深圳国际研究生院2027推免硕士互动媒体设计与技术方向：现场面试不少于20分钟，满分100分，综合考核等于面试成绩。材料审查用于筛选入围。本条不适用工程硕博士培养改革专项，也不适用其他电子信息方向。",
+      "rubricText":"官网关注基本素养、学术能力和学术志趣，但面试内部权重与及格线未公布。官方量表保留为空，不能套用同校其他学院比例。",
+      "officialRubric":[]
+    },
+    {
+      "id":"tsinghua-sigs-iid-2027-recommended","schoolId":"tsinghua","school":"清华大学","collegeId":"tsinghua-599","college":"深圳国际研究生院",
+      "programCodes":["085400"],"directionIds":["10"],"directionNames":["互联网+创新设计"],"year":2027,"admissionType":"推免面试",
+      "title":"2027互联网+创新设计推免硕士考核及录取办法","url":"https://www.sigs.tsinghua.edu.cn/2026/0813/c7770a292543/page.htm","documentUrl":"https://www.sigs.tsinghua.edu.cn/_upload/article/files/c1/48/1de6ae6c44c4b547939e22271daa/396f9354-4b40-4598-adac-67dc332e5350.pdf","publishedAt":"2026-08-25","checkedAt":"2026-10-30","verification":"official","loadable":true,
+      "stages":[{"name":"现场面试","scope":"interview","minutes":null,"minMinutes":20,"maxMinutes":null}],
+      "assessmentItems":[
+        {"name":"综合面试","scope":"interview","maxScore":100,"weight":null,"description":"专业素质、逻辑思维、创新能力、思想状况及外语听说；未公布分项比例。"},
+        {"name":"材料审查","scope":"materials","maxScore":100,"weight":null,"description":"专家评审用于选拔进入综合考核的申请者。"}
+      ],"totalScore":100,"passThreshold":null,"formula":"综合考核成绩等于面试成绩。",
+      "exclusions":["不适用于工程硕博士培养改革专项。","只适用于电子信息下互联网+创新设计方向。"],
+      "notes":["内部权重及及格线未公布，不能套用互动媒体方向或美术学院的细则。"],
+      "rulesText":"清华大学深圳国际研究生院2027推免硕士互联网+创新设计方向：现场面试不少于20分钟，满分100分，综合考核等于面试成绩。材料审查用于入围。不适用工程硕博士培养改革专项或其他电子信息方向。",
+      "rubricText":"公开考察专业素质、逻辑思维、创新、思想状况及外语听说，未公开内部权重及及格线。ON STAGE不从文本或多模态信号推断思想状况，校方审查保留未评估；官方量表不补造比例。",
+      "officialRubric":[]
+    },
+    {
+      "id":"tongji-media-2027-recommended","schoolId":"tongji","school":"同济大学","collegeId":"tongji-200","college":"艺术与传媒学院",
+      "programCodes":["140300","135700"],"directionIds":[],"year":2027,"admissionType":"推免面试",
+      "title":"艺术与传媒学院2027年接收推荐免试研究生章程暨复试办法","url":"https://am.tongji.edu.cn/info/1482/6038.htm","documentUrl":"https://am.tongji.edu.cn/__local/9/99/BE/8F5CC761FD7C226EF51709887EF_1A0CD6B3_454FE.pdf","publishedAt":"2026-09-14","checkedAt":"2026-10-30","verification":"official","loadable":true,
+      "stages":[{"name":"专业与英语综合笔试","scope":"written","minutes":90,"minMinutes":90,"maxMinutes":90},{"name":"综合面试","scope":"interview","minutes":null,"minMinutes":20,"maxMinutes":25}],
+      "assessmentItems":[
+        {"name":"综合笔试","scope":"written","maxScore":110,"weight":null,"description":"专业与英语，90分钟；不属于面试内部维度。"},
+        {"name":"综合面试","scope":"interview","maxScore":240,"weight":null,"description":"专业综合、英语以及政审；未公开专业与英语各自占比。"}
+      ],"totalScore":240,"passThreshold":null,"formula":"笔试110分与面试240分为不同考核环节；不将二者换算为面试内部权重。",
+      "exclusions":["政审由校方处理，原型不据言语风格或外观推断。"],
+      "notes":["文件未公布本条面试内部权重或60%及格线，不能从2026统考沿用。","仅适用艺术与传媒学院，不适用设计创意学院。"],
+      "rulesText":"同济大学艺术与传媒学院2027推免硕士：综合笔试110分、90分钟；综合面试240分、20至25分钟。面试涉及专业综合、英语与政审。笔试与面试是分开的环节，政审由校方负责。",
+      "rubricText":"面试总分240分，但专业、英语等内部比例未公布；不可把笔试110分与面试240分当作面试维度权重。官方量表保留为空，另用ON STAGE训练反馈。",
+      "officialRubric":[]
+    },
+    {
+      "id":"tongji-media-2026-exam","schoolId":"tongji","school":"同济大学","collegeId":"tongji-200","college":"艺术与传媒学院",
+      "programCodes":["140300","135700"],"directionIds":[],"year":2026,"admissionType":"研究生复试",
+      "title":"艺术与传媒学院2026年硕士研究生招生复试办法","url":"https://am.tongji.edu.cn/info/1482/5977.htm","documentUrl":"https://am.tongji.edu.cn/__local/D/9A/E7/673BC756E1C9D1AF665A6AED7C5_47106C92_8F405.pdf","publishedAt":"2026-03-19","checkedAt":"2026-10-30","verification":"official","loadable":true,
+      "stages":[{"name":"专业与英语综合笔试","scope":"written","minutes":90,"minMinutes":90,"maxMinutes":90},{"name":"综合面试","scope":"interview","minutes":null,"minMinutes":20,"maxMinutes":25}],
+      "assessmentItems":[
+        {"name":"综合笔试","scope":"written","maxScore":110,"weight":null,"description":"专业及英语，90分钟。"},
+        {"name":"综合面试","scope":"interview","maxScore":240,"weight":null,"description":"专业综合、英语及政审，20至25分钟；内部占比未公开。"}
+      ],"totalScore":240,"passThreshold":null,"formula":"复试合计350分，低于满分60%不予录取；该60%是复试整体要求，不是单独面试及格线。",
+      "exclusions":["政审由校方进行。"],
+      "notes":["这是2026统考复试历史版本，不能用于2027推免或2027统考。","60%阈值针对笔试与面试合计350分；不得填作面试144分及格线。"],
+      "rulesText":"同济大学艺术与传媒学院2026统考复试：专业及英语综合笔试110分、90分钟；专业综合及英语等面试240分、20至25分钟。复试共350分，低于整体满分60%不予录取。仅作2026统考参考。",
+      "rubricText":"面试总分240分，内部专业与英语的比例未公布；复试350分的60%要求不能当作面试及格线。官网量表不自动补造权重。",
+      "officialRubric":[]
+    },
+    {
+      "id":"tongji-design-2027-pending","schoolId":"tongji","school":"同济大学","collegeId":"tongji-270","college":"设计创意学院",
+      "programCodes":["085500","087200","140300","135700"],"directionIds":[],"year":2027,"admissionType":"推免面试",
+      "title":"设计创意学院2027推免通知（正文待核验）","url":"https://yz.tongji.edu.cn/info/1010/4220.htm","documentUrl":"https://tjdi.tongji.edu.cn/NewsDetail.do?ID=6008","publishedAt":null,"checkedAt":"2026-10-30","verification":"source_pending","loadable":false,
+      "stages":[],"assessmentItems":[],"totalScore":null,"passThreshold":null,"formula":"尚未核实原文，不能生成官方评分结构。",
+      "exclusions":[],"notes":["学校研招官方汇总链接到学院预报名通知，但本次读取学院详情返回数据库错误。","不套用同济艺术与传媒学院规则。可手动上传已核实的本专业细则。"],
+      "rulesText":"","rubricText":"","officialRubric":[]
+    }
+  ]
+}

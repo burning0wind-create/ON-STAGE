@@ -11,7 +11,7 @@ export function catalogSelection(templates, target) {
   return {school,colleges,college,programs,program,directions,direction};
 }
 export function clearTargetRules(target, materials) {
-  const next={...target,rulesText:'',rubricText:'',official:[],officialRubric:null};
+  const next={...target,rulesText:'',rubricText:'',official:[],officialRubric:null,examLibraryId:null,examLibrary:null};
   const selected={...materials};delete selected.rules;delete selected.rubric;
   return {target:next,materials:selected};
 }

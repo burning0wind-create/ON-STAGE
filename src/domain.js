@@ -66,7 +66,7 @@ export function makePlan(profile, materials) {
       examiners: profile.stages.map(s => ({ stageId: s.id, role: `${s.name}虚拟练习考官` })),
       strategy: profile.stages.map(s => ({ ...s, opening: s.question, followupFocus: '依据回答追问设计依据、个人贡献、替代方案与验证' })),
       gaps: materials.filter(m => !['parsed','user_described'].includes(m.status)).map(m => `${m.name}需要补充可读取文字或页面说明`),
-      evaluation: { trainingRubric: DIMENSIONS, officialRubric: profile.officialRubric, rubricText: profile.rubricText, status: profile.officialRubric ? 'user_confirmed' : 'training_only' },
+      evaluation: { trainingRubric: profile.trainingRubric??DIMENSIONS, officialRubric: profile.officialRubric, rubricText: profile.rubricText, status: profile.officialRubric ? 'user_confirmed' : 'training_only',evidencePolicy:'先冻结标准；专业与语言分开；覆盖与质量分开；引用、边界、追问可追溯；重复引文不计新增证据。' },
       rhythm: { totalMinutes: profile.stages.reduce((n,s) => n+s.minutes, 0), pauseAllowed: true, sensingAffectsContentScore: false },
     },
   };
