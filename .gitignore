@@ -1,19 +1,10 @@
-# 运行时数据：简历、复盘、缓存属于用户隐私，一律不进仓库
-# （data/mock/ 为交付用的演示数据，需要入库）
-data/*
-!data/mock/
-
-# 仓库不放任何 markdown 文件（方案书等一律排除），README.md 与产品规划历程除外
-*.md
-!README.md
-!产品规划历程.md
-
 node_modules/
-.DS_Store
-*.log
-
-# 语音链路本地凭据：只留 example 模板入库（§4.6）
-.env.voice.local
-.env.local
-.env.*.local
+data/
 .env
+.env.*
+!.env.example
+*.log
+coverage/
+.DS_Store
+*.tmp
+*.zip
