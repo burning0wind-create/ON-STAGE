@@ -13,6 +13,8 @@
 `src/store.js`：限制路径标识、临时文件后原子替换。
 `src/server.js`：仅绑定 127.0.0.1、同源访问校验、上传上限、API 与报告导出。
 
+V0.3 新增：`public/rubrics.js` 按专业代码与方向构建产品训练量表，`src/evidence.js` 校验并聚合原文证据，`src/exam-library.js` 对版本化官网考核记录作精确适用范围校验，`src/report-export.js` 导出本场冻结标准与证据。界面通过 `public/exam-library-ui.js` 呈现考核库。`src/domain.js` 中旧版通用维度只保留给历史记录兼容。
+
 ## 缓存与身份
 
 场次缓存键是以下对象的 SHA-256：
@@ -29,20 +31,21 @@
 
 active → paused → active；active → complete。
 
-每题考官发问后，学生只能提交一次回答；通过 questionId 防止重复或过期题提交。回答后可 followup 或 next。单场最多 160 条问答记录；请求互斥锁防止并发重复写入。complete 后不允许继续回答与提交状态事件。
+每题考官发问后，学生只能提交一次回答或 skip；通过 questionId 防止重复或过期题提交。回答或跳过后可 followup 或 next。跳过保留独立状态，不增加实际作答覆盖。单场最多 160 条问答记录；请求互斥锁防止并发重复写入。complete 后不允许继续回答与提交状态事件。
 
 ## 主要接口
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/config` | 模式、院校入口、环节和训练评分 |
+| GET | `/api/exam-library` | 官网考核摘要、来源、适用范围与公开权重 |
 | GET / POST | `/api/materials` | 材料元数据 / multipart 文件上传 |
 | GET | `/api/materials/:id/file` | 仅通过受限 ID 读取已保存原件 |
 | GET / POST | `/api/profiles` | 读取 / 保存学生与院校规则设置 |
 | GET / POST | `/api/sessions` | 记录列表 / 根据 profileId 开始面试 |
 | GET | `/api/sessions/:id` | 本场完整状态 |
 | POST | `/api/sessions/:id/answer` | `{questionId, answer, inputMode, durationMs}` |
-| POST | `/api/sessions/:id/action` | `{action: pause/resume/followup/next/finish}` |
+| POST | `/api/sessions/:id/action` | `{action: pause/resume/skip/followup/next/finish}` |
 | POST | `/api/sessions/:id/sensors` | `{events:[...]}` |
 | GET | `/api/sessions/:id/export` | JSON；`?format=md` 为 Markdown |
 | GET / POST | `/api/sources` | 按院校专业标注的来源缓存 |
