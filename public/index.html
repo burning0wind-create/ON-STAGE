@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#7a72a5"><title>开场 ON STAGE · 设计升学面试练习</title><link rel="icon" href="/assets/mark.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/exam-library.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#087f70"><title>开场 ON STAGE / 设计升学面试练习</title><script src="/theme.js"></script><link rel="icon" href="/assets/mark.svg?v=3" type="image/svg+xml"><link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/exam-library.css"><link rel="stylesheet" href="/multimodal-host.css"><link rel="stylesheet" href="/ui-refresh.css"><link rel="stylesheet" href="/typography.css?v=1"><link rel="stylesheet" href="/hierarchy.css?v=1"><link rel="stylesheet" href="/theme.css?v=1"><link rel="stylesheet" href="/palette.css?v=1"><link rel="stylesheet" href="/responsive.css?v=1"><link rel="stylesheet" href="/home.css?v=1"></head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="#home"><img src="/assets/mark.svg" alt=""><span>ON STAGE<small>开场 · 设计升学面试练习</small></span></a>
+    <div class="sidebar-head"><a class="brand" href="#home" aria-label="开场 ON STAGE 首页"><img src="/assets/mark.svg?v=3" alt=""><span>ON STAGE<small>开场 升学面试练习</small></span></a><button id="sidebar-toggle" class="sidebar-toggle" type="button" data-shell-control aria-label="收起侧边栏" aria-expanded="true" aria-controls="main-navigation" title="收起侧边栏"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button></div>
     <p class="nav-caption">练习空间</p>
-    <nav aria-label="主导航">
+    <nav id="main-navigation" aria-label="主导航">
       <a href="#home" data-page="home"><span>◫</span>面试练习</a>
       <a href="#setup" data-page="setup"><span>⊞</span>面试设置</a>
       <a href="#exam-library" data-page="exam-library"><span>▤</span>官网考核库</a>
@@ -14,13 +14,14 @@
       <a href="#reports" data-page="reports"><span>▥</span>面试结果</a>
       <a href="#sources" data-page="sources"><span>⌘</span>参考资料</a>
     </nav>
-    <div class="sidebar-bottom"><div class="status-dot"></div><span id="runtime-mode">正在连接…</span><p>把设计过程与判断讲清楚。</p></div>
+    <div class="sidebar-bottom"><div class="appearance-actions"><button id="palette-toggle" class="theme-toggle" data-shell-control type="button" aria-label="选择浅色配色" aria-expanded="false" aria-controls="palette-panel" title="浅色配色"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="4"/><circle cx="16" cy="8" r="4"/><circle cx="12" cy="16" r="4"/></svg><span class="theme-label">浅色配色</span></button><button id="theme-toggle" class="theme-toggle" data-shell-control type="button" aria-label="切换至深色模式" title="切换至深色模式"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span class="theme-label">深色模式</span></button></div><div class="sidebar-status"><div class="status-dot"></div><span id="runtime-mode">正在连接…</span></div></div>
+    <section id="palette-panel" class="palette-panel" aria-label="浅色配色" hidden><h2>浅色配色</h2><div class="palette-options"><button type="button" data-shell-control data-palette-value="green" aria-pressed="true"><span class="palette-swatch swatch-green" aria-hidden="true"></span>青绿</button><button type="button" data-shell-control data-palette-value="blue" aria-pressed="false"><span class="palette-swatch swatch-blue" aria-hidden="true"></span>蓝色</button><button type="button" data-shell-control data-palette-value="purple" aria-pressed="false"><span class="palette-swatch swatch-purple" aria-hidden="true"></span>紫色</button><button type="button" data-shell-control data-palette-value="mono" aria-pressed="false"><span class="palette-swatch swatch-mono" aria-hidden="true"></span>黑白</button></div></section>
   </aside>
   <main>
-    <header class="topbar"><span id="breadcrumb">练习空间 / 面试练习</span><div class="top-right"><span class="pill">设计学与相关专业</span><span class="avatar">开</span></div></header>
     <div id="app" aria-live="polite"><section class="empty">正在打开练习空间…</section></div>
-    <footer>ON STAGE · 升学面试练习与复盘</footer>
+    <section id="multimodal-root" hidden aria-label="多模态面试记录"><div class="mm-shell"><div class="mm-header"><div><h2 id="mm-title">多模态采集</h2><p id="mm-status">正在加载采集模块</p></div><label id="mm-toggle" class="mm-toggle"><input id="mm-enabled" type="checkbox" checked>随面试自动记录</label></div><div id="mm-report-tools" class="mm-tools" hidden><select id="mm-captures" aria-label="本场多模态片段"></select><button id="mm-refresh" class="secondary small" type="button">刷新片段</button></div><p id="mm-saved" class="mm-save"></p><div class="mm-tools"><button id="mm-retry" class="secondary small" hidden type="button">重试保存</button></div><iframe id="multimodal-frame" title="摄像头与IMU采集及同步复盘" allow="camera 'self'; bluetooth 'self'"></iframe></div></section>
   </main>
   <div id="toast" role="status" hidden></div>
+  <script type="module" src="/shell.js"></script>
   <script type="module" src="/app.js"></script>
 </body></html>

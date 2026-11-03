@@ -1,0 +1,50 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {parseEnv} from 'node:util';
+import {Store} from '../src/store.js';
+import {createServer} from '../src/server.js';
+import {validateModelSettings,testModelSettings} from '../src/model-settings.js';
+
+const values={baseUrl:'https://model.example/v1',model:'test-model',apiKey:'fake-test-key'};
+test('密钥不跨接口复用，拒绝不安全地址及环境文件注入',()=>{
+  const env={LLM_BASE_URL:values.baseUrl,LLM_API_KEY:values.apiKey};
+  assert.equal(validateModelSettings({...values,apiKey:''},env).LLM_API_KEY,values.apiKey);
+  assert.throws(()=>validateModelSettings({...values,baseUrl:'https://other.example',apiKey:''},env),/重新填写/);
+  for(const change of [{baseUrl:'http://remote.example'},{baseUrl:'https://user:pass@model.example'},{baseUrl:'https://model.example/chat/completions'},{model:'test\nOTHER=bad'},{apiKey:'key\nOTHER=bad'}])assert.throws(()=>validateModelSettings({...values,...change},{}));
+  assert.throws(()=>validateModelSettings(null,{}));
+});
+test('测试仅发送连接文本，服务商错误不回显密钥或响应正文',async()=>{
+  const settings=validateModelSettings(values,{});
+  await testModelSettings(settings,()=>async messages=>{assert.equal(messages.length,1);assert.match(messages[0].content,/Connection test/);return '{"ok":true}';});
+  for(const status of [401,429,502])await assert.rejects(()=>testModelSettings(settings,()=>async()=>{throw Object.assign(Error('secret-response-fake-test-key'),{status});}),error=>!error.message.includes('fake-test-key'));
+  await assert.rejects(()=>testModelSettings(settings,()=>async()=>''),/未返回文本/);
+});
+test('网页配置验证后持久化并热启用，读取配置不返回密钥，失败保留原配置',async t=>{
+  const root=fs.mkdtempSync(path.join(os.tmpdir(),'onstage-model-test-'));
+  const file=path.join(root,'.env.local');fs.writeFileSync(file,'PORT=4318\nSEARCH_API_KEY="unrelated-test-key"\n');
+  let failTest=false,calls=0;
+  const server=createServer({store:new Store(path.join(root,'data')),llm:null,env:{},settingsFile:file,testConnection:async()=>{calls++;if(failTest)throw Object.assign(Error('测试失败'),{status:502});}});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(async()=>{await new Promise(resolve=>{server.closeAllConnections();server.close(resolve);});const checked=path.resolve(root);if(!checked.startsWith(path.resolve(os.tmpdir())+path.sep)||!path.basename(checked).startsWith('onstage-model-test-'))throw Error('Unsafe test cleanup');fs.rmSync(checked,{recursive:true,force:true});});
+  const base=`http://127.0.0.1:${server.address().port}`;
+  const post=(route,data,extra={})=>fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json',...extra},body:JSON.stringify(data)});
+  assert.equal((await (await fetch(base+'/api/model-settings')).json()).configured,false);
+  assert.equal((await post('/api/model-settings/test',values)).status,200);
+  assert.equal(parseEnv(fs.readFileSync(file,'utf8')).LLM_API_KEY,undefined);
+  assert.equal((await (await fetch(base+'/api/config')).json()).mode,'demo');
+  const saved=await post('/api/model-settings',values);assert.equal(saved.status,200);
+  assert.ok(!(await saved.text()).includes(values.apiKey));
+  assert.equal((await (await fetch(base+'/api/config')).json()).mode,'llm');
+  const stored=parseEnv(fs.readFileSync(file,'utf8'));assert.equal(stored.LLM_API_KEY,values.apiKey);assert.equal(stored.SEARCH_API_KEY,'unrelated-test-key');
+  const read=await (await fetch(base+'/api/model-settings')).json();assert.equal(read.hasApiKey,true);assert.equal(read.apiKey,undefined);
+  assert.equal((await post('/api/model-settings',{...values,model:'another-model',apiKey:''})).status,200);
+  failTest=true;
+  assert.equal((await post('/api/model-settings',{...values,model:'bad-model'})).status,502);
+  assert.equal(parseEnv(fs.readFileSync(file,'utf8')).LLM_MODEL,'another-model');
+  assert.equal((await post('/api/model-settings',values,{Origin:'https://outside.example'})).status,403);
+  assert.equal((await fetch(base+'/api/model-settings',{method:'POST',body:JSON.stringify(values)})).status,415);
+  assert.equal(calls,4);
+});

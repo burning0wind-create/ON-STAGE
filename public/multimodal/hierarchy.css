@@ -1,0 +1,115 @@
+:root { --surface-inset: 28px; --surface-gap: 24px; }
+body[data-host-view] { background: transparent; }
+body[data-host-view] main { padding: 0; }
+body[data-host-view] .capture-layout { grid-template-columns: minmax(0,1.7fr) minmax(280px,1fr); gap: var(--surface-gap); align-items: start; }
+body[data-host-view] .viewer-column { padding: var(--surface-inset); background: #fff; min-width: 0; }
+.capture-side { display: grid; gap: var(--surface-gap); min-width: 0; }
+.capture-side .imu-section { margin: 0; padding: var(--surface-inset); border: 0; background: #fff; }
+.capture-side .imu-header { display: block; margin-bottom: 20px; }
+.capture-side .imu-header h2 { margin: 0 0 16px; font-size: var(--fs-body); }
+.capture-side .imu-connect-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.capture-side .imu-connect-actions > span { width: 100%; font-size: var(--fs-meta); margin-bottom: 4px; }
+.capture-side .imu-connect-actions .button { font-size: var(--fs-meta); padding: 10px 12px; }
+.capture-side .imu-grid { grid-template-columns: 1fr; gap: 16px; }
+.capture-side .imu-reading { padding: 20px; }
+.capture-side .imu-reading .field-label { margin: 0; }
+.capture-side .tilt-number { margin: 12px 0; }
+.capture-side .tilt-number strong { font-size: var(--fs-display); font-weight: 500; }
+.capture-side #imuTiltState { margin: 8px 0 0; font-size: var(--fs-meta); }
+.capture-side .imu-config { background: transparent; padding: 0; }
+.calibration-row { gap: 12px; }
+.calibration-row strong { font-size: var(--fs-meta); font-weight: 500; }
+.capture-side .calibration-row .button { font-size: var(--fs-meta); }
+.capture-settings { border: 0; background: #fff; margin: 0; padding: var(--surface-inset); }
+.capture-settings > summary, .imu-advanced > summary, .device-details > summary { color: var(--ink); font-size: var(--fs-meta); font-weight: 500; cursor: pointer; }
+.capture-settings .settings { margin-top: 24px; padding: 0; background: transparent; }
+.capture-settings .section-title h2 { font-size: var(--fs-body); }
+.capture-settings .step-number { display: none; }
+.imu-advanced { border-top: .5px solid var(--line); margin-top: 20px; padding-top: 16px; }
+.imu-advanced > summary { margin-bottom: 16px; }
+.imu-advanced:not([open]) > summary { margin-bottom: 0; }
+.capture-side .device-details { margin: 20px 0 0; padding-top: 16px; border-top: .5px solid var(--line); }
+.device-details p, .device-details small { font-size: var(--fs-meta); color: var(--muted); line-height: 1.8; }
+.device-details small { display: block; margin-top: 12px; }
+body[data-host-view] #startCamera { display: none; }
+.viewer-top { gap: 12px; margin-bottom: 12px; align-items: center; }
+.viewer-top { flex-wrap: wrap; }
+.source-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.source-actions .button { font-size: var(--fs-meta); padding: 10px 12px; }
+.capture-settings .source-name { display: block; max-width: 100%; margin-bottom: 16px; font-size: var(--fs-meta); color: var(--muted); }
+.control-buttons:has(>#playPause[hidden]:only-child) { display: none; }
+.source-tabs { padding: 4px; gap: 4px; border-radius: 6px; }
+.source-tab { border-radius: 2px; min-height: 36px; font-size: var(--fs-meta); padding: 8px 12px; }
+.stage { border-radius: 12px; }
+.stage .empty { padding: 24px; }
+.stage .empty .viewfinder { display: none; }
+.stage .empty h2 { margin-bottom: 12px; font-size: var(--fs-body); }
+.stage .empty p { margin: 0; font-size: var(--fs-meta); }
+.viewer-controls { align-items: flex-start; gap: 12px; margin-top: 16px; }
+.control-buttons, .display-options { gap: 8px 12px; flex-wrap: wrap; }
+.viewer-controls .button { font-size: var(--fs-meta); }
+.measurements { margin-top: 20px; border-bottom: .5px solid var(--line); padding: 16px 0; }
+.measurements > div { min-width: 0; padding: 0 12px; }
+.measurements > div:first-child { padding-left: 0; }
+.measurements span, .measurements small { font-size: var(--fs-meta); }
+.measurements strong { font-size: var(--fs-body); font-weight: 500; margin: 8px 0; }
+.hand-cards:has(>p:empty:only-child) { display: none; }
+.button { font-weight: 500; }
+.button:focus-visible, summary:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.report-metric, .behavior-results > article, .report-moment { background: #f5f9f3; }
+.behavior-results > article:last-child { background: #f1f7e9; }
+.reflection-panel > summary, .question-review > summary { font-size: var(--fs-body); font-weight: 500; }
+.results-header h2 { font-size: var(--fs-body); }
+.results-header { margin-bottom: 24px; }
+.report-moments { gap: 24px; }
+.review-inspector { gap: 24px; }
+.review-dialogue { background: #f6f9f4; }
+/* Each white surface owns an inset, including headings and its last row. */
+body[data-host-view=reports] .results-section {
+  margin: 0;
+  padding: var(--surface-inset);
+  border: 0;
+  background: #fff;
+}
+body[data-host-view=reports] .review-section {
+  margin-top: var(--surface-gap);
+  padding: var(--surface-inset);
+  border: 0;
+  background: #fff;
+}
+.results-header, .review-header { gap: 16px 24px; align-items: flex-start; }
+.results-header { margin-bottom: 24px; }
+.report-source { margin: 16px 0 24px; }
+.report-metrics { gap: var(--surface-gap); margin: 24px 0; }
+.behavior-results, .report-insights, .report-moments { gap: var(--surface-gap); }
+.report-metric { padding: 24px; }
+.behavior-results > article, .report-moment { padding: 24px; }
+.report-section-title { margin: 32px 0 20px; }
+.report-insight { padding: 24px 0; background: transparent; }
+.report-insight p, .behavior-results p, .report-moment p { overflow-wrap: anywhere; }
+.report-details { padding: 20px 0; }
+.reflection-panel { padding: 24px; }
+.review-inspector { padding: 0; }
+.review-split { gap: var(--surface-gap); }
+.review-dialogue { padding: 24px; }
+.review-camera-tools { flex-wrap: wrap; }
+.note-controls { flex-wrap: wrap; min-width: 0; }
+.note-controls input { flex: 1 1 180px; }
+.report-actions { min-width: 0; flex-wrap: wrap; }
+@media(max-width: 850px) {
+  :root { --surface-inset: 24px; }
+  body[data-host-view] .capture-layout { grid-template-columns: 1fr; gap: 24px; }
+  .capture-side .imu-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width: 520px) {
+  :root { --surface-inset: 20px; --surface-gap: 20px; }
+  .capture-side .imu-grid { grid-template-columns: 1fr; }
+  .viewer-controls { flex-direction: column; }
+  .viewer-top { flex-wrap: wrap; }
+  .source-tabs { max-width: 100%; }
+  .source-tab { padding: 8px; }
+  .measurements { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+  .measurements > div:nth-child(3) { padding-left: 0; }
+  .report-metric, .behavior-results > article, .report-moment, .reflection-panel, .review-dialogue { padding: 20px; }
+  .report-metric strong { font-size: var(--fs-body); overflow-wrap: anywhere; }
+}

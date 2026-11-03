@@ -1,1 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><path id="Body" fill="#7A72A5" d="M72 12H36C22.745 12 12 22.745 12 36V60C12 73.255 22.745 84 36 84H60C73.255 84 84 73.255 84 60V48H66V60C66 63.314 63.314 66 60 66H36C32.686 66 30 63.314 30 60V36C30 32.686 32.686 30 36 30H54L72 12Z"/><path id="Accent" fill="#DDF58B" d="M66 30L84 12V30H66Z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 128 128">
+  <title>开场 ON STAGE OS字母标志</title>
+  <defs><mask id="cut"><rect width="128" height="128" fill="white"/><path fill="black" d="M62 0H128V66L62 0ZM0 62V128H66L0 62Z"/><path d="M90 8C62 -8 18 16 30 40C39 58 89 70 98 88C110 112 66 136 38 120" fill="none" stroke="black" stroke-width="18"/></mask></defs>
+  <g transform="rotate(-12 64 64)"><circle cx="64" cy="64" r="50" fill="#087F70" mask="url(#cut)"/></g>
+</svg>

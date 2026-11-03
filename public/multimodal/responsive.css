@@ -1,0 +1,49 @@
+/* The frame's viewport tracks the available content area, not the monitor. */
+main,.capture-layout,.capture-side,.viewer-column,.imu-section,.results-section,.review-section { min-width: 0; }
+.capture-layout > *, .review-split > *, .review-inspector > * { min-width: 0; }
+.source-actions,.source-tabs,.viewer-top,.review-selection,.review-camera-tools,.dialogue-heading { flex-wrap: wrap; }
+.source-name,.review-selection h3,.report-source,.auxiliary-score-grid h5 { overflow-wrap: anywhere; }
+.stage { min-height: 0; aspect-ratio: 16/9; height: auto; }
+.report-details,.scroll-table { max-width: 100%; min-width: 0; overflow-x: auto; }
+.auxiliary-score-grid { grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); }
+.auxiliary-score-grid article { padding: 20px; }
+.auxiliary-card-heading { flex-wrap: wrap; gap: 4px 12px; }
+.review-preview { max-width: 100%; }
+.transcript-list { max-height: min(440px,60dvh); }
+.review-camera-tools .button { flex-shrink: 1; max-width: 100%; }
+.report-actions .button { max-width: 100%; }
+body[data-host-view=reports] .results-header { flex-direction: row; justify-content: space-between; align-items: flex-end; }
+body[data-host-view=reports] .results-header > div:first-child { flex: 1; min-width: 0; }
+@media(max-width: 1000px) {
+  body[data-host-view] .capture-layout,.capture-layout { grid-template-columns: minmax(0,1fr); }
+  .capture-side { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; }
+  .capture-side > * { min-width: 0; }
+  .capture-side .imu-grid { grid-template-columns: minmax(0,1fr); }
+  .review-split { grid-template-columns: minmax(0,1fr); }
+  .report-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media(max-width: 680px) {
+  .capture-side,.behavior-results,.report-insights,.report-moments { grid-template-columns: minmax(0,1fr); }
+  .capture-side .imu-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .capture-settings,.imu-section { padding: 20px; }
+  .results-header,.review-header { flex-wrap: wrap; }
+  .report-metric { padding: 16px; }
+  .report-metric strong { font-size: var(--fs-body); }
+  .review-dialogue { padding: 16px; }
+}
+@media(max-width: 420px) {
+  :root { --surface-inset: 16px; --surface-gap: 16px; }
+  .measurements { gap: 12px; }
+  .source-tabs { flex-wrap: wrap; }
+  .source-tab { min-height: 44px; }
+  .source-actions { width: 100%; }
+  .source-actions > button { flex: 1; min-width: 0; }
+  .report-actions { width: auto; }
+  body[data-host-view=reports] .results-header { flex-direction: column; align-items: stretch; }
+  body[data-host-view=reports] .results-header .report-actions { align-self: flex-end; }
+  .capture-side .imu-grid { grid-template-columns: minmax(0,1fr); }
+  .note-controls { width: 100%; }
+  .note-controls input { flex-basis: 100%; }
+  .review-camera-tools .button { width: 100%; }
+  .auxiliary-score-grid { grid-template-columns: minmax(0,1fr); }
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 128 128">
+  <title>开场 ON STAGE OS字母标志</title>
+  <defs><mask id="cut"><rect width="128" height="128" fill="white"/><path fill="black" d="M62 0H128V66L62 0ZM0 62V128H66L0 62Z"/><path d="M90 8C62 -8 18 16 30 40C39 58 89 70 98 88C110 112 66 136 38 120" fill="none" stroke="black" stroke-width="18"/></mask></defs>
+  <g transform="rotate(-12 64 64)"><circle cx="64" cy="64" r="50" fill="#F7F8F2" mask="url(#cut)"/></g>
+</svg>

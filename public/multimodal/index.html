@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark"><title>镜头练习</title><script src="/theme.js"></script>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./report.css">
+  <link rel="stylesheet" href="./review.css">
+  <link rel="stylesheet" href="./host-theme.css">
+  <link rel="stylesheet" href="./ui-polish.css">
+<link rel="stylesheet" href="/typography.css?v=1"><link rel="stylesheet" href="./hierarchy.css?v=1"><link rel="stylesheet" href="/theme.css?v=1"><link rel="stylesheet" href="/palette.css?v=1"><link rel="stylesheet" href="./responsive.css?v=1"></head>
+<body>
+  <header class="site-header"><a class="brand" href="./"><span class="brand-mark">◌</span> 镜头练习 <span class="brand-sub">CAMERA LAB</span></a><span class="local-label"><i></i> 本地运行</span></header>
+  <main>
+    <div class="intro"><div><p class="eyebrow">升学面试练习</p><h1>看见表达的变化</h1></div><div class="model-status"><span id="modelDot" class="status-dot"></span><div><strong id="modelState">识别模型未加载</strong><small id="modelDetail">MediaPipe Hand Landmarker 本地运行</small></div><button id="loadModel" class="button quiet">加载模型</button></div></div>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <section class="capture-layout" aria-label="摄像头识别调试">
+      <div class="viewer-column">
+        <div class="viewer-top"><div class="source-tabs" role="group" aria-label="选择输入"><button id="cameraTab" class="source-tab active">摄像头</button><label class="source-tab file-label">导入录像<input id="videoFile" type="file" accept="video/*"></label><button id="sampleButton" class="source-tab">官方测试图</button></div><span id="sourceName" class="source-name">尚未连接</span></div>
+        <div id="stage" class="stage">
+          <video id="video" playsinline muted hidden></video><img id="sampleImage" alt="官方手部识别测试图片" hidden><canvas id="overlay" aria-label="手部关键点叠加"></canvas>
+          <div id="empty" class="empty"><div class="viewfinder"><span>✳</span></div><h2>让双手进入画面</h2><p>固定机位，让前臂和双手清晰可见。</p><button id="startCamera" class="button primary">开启摄像头</button></div>
+          <div class="stage-label"><span id="sourceBadge">等待输入</span><span id="clock">00:00.0</span></div><div id="recordBadge" class="record-badge" hidden><span></span> 正在记录</div>
+          <div id="detectionBadge" class="detection-badge" hidden>等待识别</div>
+        </div>
+        <div class="viewer-controls"><div class="control-buttons"><button id="cameraButton" class="button primary">开启摄像头</button><button id="playPause" class="button" hidden>播放录像</button><button id="stopSource" class="button" disabled>关闭输入</button></div><div class="display-options"><label><input id="mirror" type="checkbox" checked> 镜像显示</label><label><input id="showSkeleton" type="checkbox" checked> 关键点</label><label><input id="showTrail" type="checkbox" checked> 轨迹</label></div></div>
+        <div class="media-bar" id="mediaBar" hidden><input id="seek" type="range" min="0" max="100" value="0" step="0.01" aria-label="录像位置"><span id="duration">00:00</span></div>
+        
+        <div class="measurements"><div><span>当前检出</span><strong id="handCount">—</strong><small>只手 / 最多 2 只</small></div><div><span>处理频率</span><strong id="actualFps">—</strong><small>采样帧 / 秒</small></div><div><span>推理耗时</span><strong id="latency">—</strong><small>毫秒 / 帧</small></div><div><span>本轮检出帧</span><strong id="coverage">—</strong><small>采样覆盖</small></div></div>
+        <div id="handCards" class="hand-cards"><p class="muted"></p></div>
+      </div>
+
+      <aside class="settings" aria-label="采集设置">
+        <div class="section-title"><span class="step-number">01</span><h2>采集设置</h2></div>
+        <label class="field-label" for="cameraSelect">摄像头</label><select id="cameraSelect"><option value="">系统默认摄像头</option></select><button id="refreshCameras" class="text-button">刷新设备列表</button>
+        <div class="setting-divider"></div>
+        <label class="field-label" for="questionId">题目编号</label><input id="questionId" type="text" value="Q1" maxlength="80" autocomplete="off">
+        <details class="advanced"><summary>采集参数</summary><div class="field-pair"><div><label class="field-label" for="targetFps">目标处理频率</label><select id="targetFps"><option value="10">10 帧 / 秒</option><option value="15" selected>15 帧 / 秒</option><option value="20">20 帧 / 秒</option></select></div><div><label class="field-label" for="motionThreshold">移动进入阈值</label><input id="motionThreshold" type="number" min="0.2" max="10" value="1.0" step="0.1"></div></div>
+        
+        <details><summary>这些数值代表什么？</summary><p>使用掌部中心的短时平滑速度。持续超过阈值约 350 毫秒才形成移动候选，停止后合并为片段。运动轨迹不能直接说明手势含义、紧张或自信。</p><p>左右标签来自模型，轨迹编号用于短时关联；遮挡后可能分配新编号。</p></details></details>
+
+        <div class="setting-divider"></div><div class="section-title"><span class="step-number">02</span><h2>记录一轮</h2></div>
+        <label class="check-field"><input id="recordVideo" type="checkbox" checked> 同时保存摄像头视频</label>
+        <div class="record-actions"><button id="startRecording" class="button primary" disabled>开始记录</button><button id="stopRecording" class="button" disabled>结束</button></div>
+        <label class="field-label" for="sessionSelect">本页会话记录</label><select id="sessionSelect"><option value="">尚无记录</option></select>
+        <div class="export-buttons"><button id="exportJson" class="button" disabled>完整数据 JSON</button><button id="exportCsv" class="button" disabled>帧特征 CSV</button><button id="exportEvents" class="button" disabled>事件 CSV</button><button id="downloadVideo" class="button" disabled>下载本轮视频</button></div>
+        <button id="exportImu" class="button export-imu" disabled>IMU数据 CSV</button>
+        
+      <p class="field-help">刷新或关闭前请导出记录。</p></aside>
+    </section>
+
+    <section class="imu-section" aria-labelledby="imuTitle">
+      <div class="imu-header"><div><p class="eyebrow">02 身体姿态</p><h2 id="imuTitle">身体姿态</h2></div><div class="imu-connect-actions"><span><i id="imuDot" class="status-dot"></i><strong id="imuConnection">未连接</strong></span><button id="imuConnect" class="button primary">连接蓝牙IMU</button><button id="imuDisconnect" class="button" disabled>断开IMU</button></div></div>
+      <div id="imuMessage" class="message" role="status" aria-live="polite"></div>
+      <div class="imu-grid">
+        <div class="imu-reading"><span class="field-label">相对坐姿偏离角</span><div class="tilt-number"><strong id="imuTilt">—</strong><span>°</span></div><div class="tilt-meter"><i id="imuTiltBar"></i></div><p id="imuTiltState">姿态未知</p><small>忽略绕竖直方向的转身；是传感器相对基准的倾斜变化，并非关节角度。需通过实际动作复核。</small></div>
+        
+        <div class="imu-config"><div class="calibration-row"><strong id="imuCalibration">尚未校准</strong><button id="imuCalibrate" class="button" disabled>校准坐姿</button></div><label class="field-label" for="imuThreshold">偏离阈值（°）</label><input id="imuThreshold" type="number" min="3" max="60" step="1" value="12"><label class="check-field"><input id="imuShowAll" type="checkbox"> 找不到设备时，显示全部蓝牙设备</label><div class="record-actions"><button id="imuRecord" class="button primary" disabled>开始同步记录</button><button id="imuStopRecord" class="button" disabled>结束记录</button></div></div>
+      </div>
+    <details class="device-details"><summary>原始数据与设备说明</summary><div class="imu-raw"><strong id="imuDeviceName">WitMotion BLE 5.0</strong><dl><div><dt>传感器角 X / Y / Z</dt><dd id="imuAngles">— / — / —</dd></div><div><dt>加速度 X / Y / Z g</dt><dd id="imuAcceleration">— / — / —</dd></div><div><dt>角速度 X / Y / Z °/s</dt><dd id="imuGyro">— / — / —</dd></div><div class="imu-mini-metrics"><span>接收频率 <b id="imuRate">—</b></span><span>数据年龄 <b id="imuAge">等待数据</b></span></div></dl><small id="imuPacketCount">0 个有效格式包</small></div><p>固定在胸前或上背部，佩戴后校准。角度相对个人基准，阈值仅用于标记变化。</p></details></section>
+
+    <section id="resultsSection" class="results-section" aria-labelledby="resultsTitle">
+      <div class="results-header"><div><p class="eyebrow">03 面试复盘</p><h2 id="resultsTitle">本轮复盘</h2></div><div class="report-actions"><label class="button file-label">导入会话JSON<input id="importSession" type="file" accept=".json,application/json"></label><button id="downloadReport" class="button primary" disabled>下载复盘报告</button></div></div>
+      <span id="reportStatus" class="report-status" role="status">等待记录</span><p id="reportEmpty" class="report-empty">结束记录后查看复盘，或导入历史记录。</p>
+      <div id="reportBody" hidden>
+        <p id="reportSource" class="report-source"></p><p id="reportSummary" class="report-summary"></p>
+        <div id="reportMetrics" class="report-metrics"></div><div class="behavior-results"><article id="postureResult"></article><article id="handResult"></article></div>
+        <h3 class="report-section-title">观察与建议</h3><div id="reportInsights" class="report-insights"></div>
+        <h3 class="report-section-title">关键片段</h3><div id="reportMoments" class="report-moments"></div>
+        <details class="report-details"><summary>按题目查看行为记录</summary><div class="table-wrap"><table><thead><tr><th>题目</th><th>时间</th><th>姿态偏离候选</th><th>手部可见覆盖</th><th>手部移动</th></tr></thead><tbody id="reportQuestions"></tbody></table></div></details>
+        <details class="reflection-panel"><summary>补充体验与同伴反馈</summary><p id="reflectionEvidence" class="muted"></p><form id="reflectionForm" autocomplete="off"><div class="reflection-grid">
+          <label>本人：紧张程度（0–10）<select id="reflectionStress"><option value="">未填写</option></select></label>
+          <label>本人：注意集中（0–10）<select id="reflectionAttention"><option value="">未填写</option></select></label>
+          <label>本人：组织费力（0–10）<select id="reflectionEffort"><option value="">未填写</option></select></label>
+          <label>同伴：结构清晰（1–5）<select id="reflectionStructure"><option value="">未评价</option></select></label>
+          <label>同伴：手势是否帮助理解<select id="reflectionGesture"><option value="unrated">未评价</option><option value="helpful">有帮助</option><option value="neutral">作用不明显</option><option value="distracting">有干扰，需指出具体时刻</option><option value="not_visible">没有观察到，无法评价</option></select></label>
+          <label>本人：本轮动作主要语境<select id="reflectionContext"><option value="unconfirmed">尚未确认</option><option value="explaining">配合解释或强调</option><option value="recalling">检索知识、组织思路</option><option value="adjusting">调整姿势、衣物或舒适感</option><option value="felt_nervous">本人感觉紧张</option><option value="uncertain">不确定或多种原因</option></select></label>
+        </div><label class="reflection-note">补充具体时刻或原因<textarea id="reflectionNotes" rows="2" maxlength="2000" placeholder="例如：00:40在回忆实验参数，手势是在解释三个步骤。"></textarea></label></form><p id="reflectionSaved" class="field-help">选填，修改后自动保存。</p></details>
+        <h3 class="report-section-title">下一轮练习</h3><ol id="reportNextSteps" class="report-next-steps"></ol>
+        <details class="report-details"><summary>与上一轮对照</summary><div id="reportComparison"></div></details>
+        <details class="report-details"><summary>文献依据与结果边界</summary><ul id="reportReferences" class="report-references"></ul><ul id="reportLimits" class="report-limits"></ul></details>
+      </div>
+    </section>
+
+    <section class="review-section" aria-labelledby="reviewTitle"><div class="review-header"><div><p class="eyebrow">04 事件记录</p><h2 id="reviewTitle">记录时间线</h2></div><div class="note-controls"><input id="noteText" type="text" maxlength="240" placeholder="例如：这一段希望回看" aria-label="人工标记内容"><button id="addMarker" class="button" disabled>标记当前时刻</button></div></div>
+      <div id="markerFeedback" class="marker-feedback" role="status" aria-live="polite"></div>
+      <div id="reviewInspector" class="review-inspector" hidden>
+        <div class="review-selection"><h3 id="reviewSelection">选择片段或拖动时间轴</h3><output id="reviewTime" aria-live="polite">00:00.0</output></div>
+        <label class="field-label" for="reviewSeek">复盘位置</label><input id="reviewSeek" type="range" min="0" max="0" step="1" value="0">
+        <div class="review-split">
+          <div class="review-camera"><div class="review-preview"><video id="reviewVideo" controls playsinline hidden></video><canvas id="reviewCanvas" width="640" height="360" aria-label="选中时刻的手部关键点"></canvas></div>
+            <div class="review-camera-tools"><p id="reviewMediaHint" class="muted"></p><label class="button file-label">加载本轮录像<input id="reviewVideoFile" type="file" accept="video/*"></label></div><div class="review-readings"><span id="reviewHands"></span><span id="reviewTilt"></span></div>
+          </div>
+          <aside class="review-dialogue" aria-label="同步面试对话"><div class="dialogue-heading"><h3>当时的对话</h3><button id="loadDemoTranscript" class="button" type="button">载入测试对话</button></div><p id="transcriptNotice" class="muted">尚无对话记录</p><div id="transcriptList" class="transcript-list" role="list" aria-label="按时间排列的对话"></div></aside>
+        </div>
+      </div>
+      <div id="timeline" class="timeline" aria-label="本轮事件时间分布"><span>暂无记录</span></div>
+      <div class="table-wrap"><table><thead><tr><th>来源</th><th>时间</th><th>记录</th><th>说明</th></tr></thead><tbody id="eventRows"><tr><td colspan="4" class="table-empty">暂无事件</td></tr></tbody></table></div>
+    </section>
+    <footer><span>镜头练习</span><span id="assetVersion">本地处理</span></footer>
+  </main>
+  <script type="module" src="./app.js"></script>
+  <script type="module" src="./host-bridge.js"></script>
+</body>
+</html>

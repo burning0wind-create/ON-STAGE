@@ -1,0 +1,78 @@
+/* User-supplied PingFang SC, served locally in both the app and capture frame. */
+@font-face {
+  font-family: "PingFang SC";
+  src: url("/assets/fonts/PingFangSC-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "PingFang SC";
+  src: url("/assets/fonts/PingFangSC-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "PingFang SC";
+  src: url("/assets/fonts/PingFangSC-Semibold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --font-ui: "PingFang SC", sans-serif;
+  --fs-meta: 12px;
+  --fs-body: 16px;
+  --fs-display: 40px;
+  --fs-hero: 64px;
+  --text: var(--fs-body);
+  --heading: var(--fs-body);
+  --display: var(--fs-display);
+}
+
+html, body { font-family: var(--font-ui); font-synthesis: none; }
+button, input, select, textarea { font-family: var(--font-ui); }
+body { font-size: var(--fs-body); }
+h1, h2, h3, h4, strong, b { font-weight: 600; }
+h1 { font-size: var(--fs-display); line-height: 1.3; letter-spacing: -.03em; }
+p, h1, h2, h3, h4 { text-wrap: pretty; }
+.brand span { font-weight: 600; }
+.page-heading { margin-bottom: 32px; }
+.page-heading h1 { font-size: var(--fs-display); }
+.hero { min-height: 420px; }
+.hero-content { width: 100%; padding: 8px; }
+.hero h2 { font-size: var(--fs-hero); line-height: 1.15; letter-spacing: -.045em; margin-bottom: 24px; }
+.hero p { max-width: 28em; }
+.home-hero { grid-template-columns: minmax(0, 1.85fr) minmax(264px, 1fr); }
+.recent-card { background: #fff; border-top: .5px solid var(--line); }
+.overview-metrics strong { font-size: var(--fs-display); font-weight: 500; }
+.assessment-summary h2 { font-size: var(--fs-display); line-height: 1.3; }
+.assessment-summary:after { display: none; }
+.exam-library-intro h2 { font-size: var(--fs-display); }
+.measurements strong { font-size: var(--fs-body); }
+.tilt-number strong { font-size: var(--fs-display); }
+.results-header h2 { font-size: var(--fs-display); line-height: 1.3; }
+button.small, .button.small { border-radius: 6px; }
+
+/* A branded specimen shares exactly the same four sizes as the product. */
+body.brand-preview .hero h1 { font-size: var(--fs-hero); font-weight: 600; }
+body.brand-preview header, body.brand-preview footer,
+body.brand-preview .variants h2 { font-size: var(--fs-meta); }
+
+@media (max-width: 1150px) {
+  .home-hero { grid-template-columns: minmax(0, 1.8fr) minmax(230px, 1fr); }
+  .hero { padding: 24px; }
+}
+@media (max-width: 1000px) {
+  .home-hero { grid-template-columns: 1fr; }
+  .recent-card { border-top: 0; }
+}
+@media (max-width: 720px) {
+  .hero { min-height: 340px; padding: 20px; }
+  .hero h2, body.brand-preview .hero h1 { font-size: var(--fs-display); }
+  .hero-content { padding: 0; }
+  .page-heading h1 { overflow-wrap: anywhere; }
+  body.brand-preview .hero { flex-wrap: wrap; }
+}

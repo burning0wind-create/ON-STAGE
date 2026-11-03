@@ -1,0 +1,103 @@
+:root { color-scheme: light; }
+.stage .empty h2 { color: #f0f6f1; }
+.setting-divider { height: .5px; background: var(--line); }
+.sidebar nav svg, .sidebar-toggle svg { stroke-width: 1.5; }
+.session-table th { font-size: var(--fs-body); font-weight: 500; color: var(--ink); }
+.session-table td:first-child { font-size: var(--fs-body); font-weight: 500; }
+.session-table td:first-child .subtle { font-size: var(--fs-meta); font-weight: 400; }
+.sidebar-bottom { flex-direction: column; align-items: stretch; gap: 16px; padding: 24px 0 0; }
+.sidebar-status { display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: var(--fs-meta); }
+.theme-toggle { width: 100%; min-height: 44px; padding: 10px 12px; display: flex; justify-content: flex-start; align-items: center; gap: 12px; border: .5px solid var(--line); background: transparent; color: var(--muted); border-radius: 6px; font-size: var(--fs-meta); }
+.theme-toggle:hover { background: var(--purple-pale); color: var(--purple); }
+.theme-toggle svg { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.sidebar-collapsed .theme-toggle { justify-content: center; gap: 0; padding: 10px; }
+.sidebar-collapsed .theme-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sidebar-collapsed .sidebar-status { justify-content: center; padding: 0; }
+
+html[data-theme=dark] {
+  color-scheme: dark;
+  --ui-bg: #121c18;
+  --ui-surface: #1a2721;
+  --ui-soft: #203229;
+  --ui-raised: #283d32;
+  --ui-field: #15221b;
+  --ink: #e5efe8;
+  --muted: #a3b7ad;
+  --line: #395248;
+  --bg: var(--ui-bg);
+  --paper: var(--ui-bg);
+  --purple: #8cdec0;
+  --teal: #8cdec0;
+  --purple-pale: #173b30;
+  --lime: #c5dc8c;
+}
+html[data-theme=dark] body { background: var(--ui-bg); color: var(--ink); }
+html[data-theme=dark] :is(h1,h2,h3,h4,strong,b) { color: var(--ink); }
+html[data-theme=dark] :is(.subtle,.page-note,.help,.muted,.field-help,.caption,label.field) { color: var(--muted); }
+html[data-theme=dark] :is(.card,.sidebar,.device-statuses,.exam-library-intro,.exam-record,.rubric-dimension,.score-dimension,.evidence-record,.assessment-summary,.viewer-column,.imu-section,.capture-settings,.settings,.results-section,.review-section) { background: var(--ui-surface); border-color: var(--line); color: var(--ink); }
+html[data-theme=dark] #multimodal-frame { background: transparent; }
+html[data-theme=dark] body[data-host-view] { background: transparent; }
+html[data-theme=dark] :is(.mm-shell,.mm-header) { background: transparent; border-color: var(--line); }
+html[data-theme=dark] :is(input,textarea,select) { background: var(--ui-field); color: var(--ink); border-color: var(--line); }
+html[data-theme=dark] input::placeholder, html[data-theme=dark] textarea::placeholder { color: #8ca296; opacity: 1; }
+html[data-theme=dark] :is(button,.button) { background: var(--purple); color: #12241c; border-color: var(--purple); }
+html[data-theme=dark] :is(button,.button):hover:not(:disabled) { background: #adebd0; }
+html[data-theme=dark] :is(button.secondary,.button.secondary,button.ghost,.button.ghost,.button:not(.primary),.sidebar-toggle,.theme-toggle) { background: transparent; color: var(--ink); border-color: var(--line); }
+html[data-theme=dark] :is(button.secondary,.button.secondary,button.ghost,.button.ghost,.button:not(.primary),.sidebar-toggle,.theme-toggle):hover:not(:disabled) { background: var(--ui-raised); }
+html[data-theme=dark] :is(button.danger,.button.danger) { background: #3a2725 !important; color: #f2ac9f !important; border-color: #70473d; }
+html[data-theme=dark] :is(.button.primary,button[type=submit]) { background: var(--purple); color: #12241c; border-color: var(--purple); }
+html[data-theme=dark] .sidebar nav a { color: var(--muted); }
+html[data-theme=dark] .sidebar nav a:hover { background: var(--ui-raised); color: var(--ink); }
+html[data-theme=dark] .sidebar nav a.active { background: var(--purple-pale); color: var(--purple); }
+html[data-theme=dark].sidebar-collapsed .sidebar nav a:is(:hover,:focus-visible)::after { background: #e5efe8; color: #12241c; }
+html[data-theme=dark] :is(.brand span,.brand small,.nav-caption,.sidebar-bottom,.sidebar-status) { color: var(--muted); }
+html[data-theme=dark] .brand span { color: var(--ink); }
+html[data-theme=dark] .hero { background: #142c26; }
+html[data-theme=dark] .hero img { opacity: .28; }
+html[data-theme=dark] .hero:after { background: linear-gradient(90deg,#142c26 0%,#142c26e6 48%,#142c2620 100%); }
+html[data-theme=dark] .hero h2 { color: #e5efe8; }
+html[data-theme=dark] .hero p { color: #b6cbbf; }
+html[data-theme=dark] :is(.hero .button,.hero button) { background: var(--purple); color: #12241c; }
+html[data-theme=dark] :is(.next-practice,.coverage-metrics,.rubric-intro,.rubric-language,.expected-evidence,.anchor-grid,.original-answer,.bubble,.turn.candidate .bubble,.help,.feedback,.rubric-summary span,.rubric-contract span,.sensor-cell,.score-dimension,.pending-records>div,.evidence-empty,.coaching-details,.probe-list>div,.improvement-card,.official-result blockquote,.evidence-record blockquote,.upload,.exam-library-callout,.exam-stage-list>div,.exam-formula) { background: var(--ui-soft); border-color: var(--line); color: var(--ink); }
+html[data-theme=dark] :is(.improvement-card,.probe-list>div) { background: transparent; }
+html[data-theme=dark] :is(.no-score-track,.unobserved-note,.evidence-record .evidence-correction) { background: var(--ui-raised); color: var(--muted); }
+html[data-theme=dark] :is(.anchor-grid b,.language-criteria strong,.language-criteria p,.coaching-block h4,.coaching-block p,.pending-records strong) { color: var(--ink); }
+html[data-theme=dark] :is(.pill,.exam-tag,.evidence-status,.practice-icon,.dimension-weight,.rubric-label,.question-index,.evidence-id) { background: var(--purple-pale); color: var(--purple); border-color: var(--line); }
+html[data-theme=dark] :is(.pill.gray,.exam-tag.pending,.evidence-status.not_assessed,.evidence-status.skipped) { background: var(--ui-raised); color: var(--muted); }
+html[data-theme=dark] :is(.evidence-status.partly_observed,.evidence-status.insufficient_evidence,.legacy-notice) { background: #3b3323; color: #e6c77a; }
+html[data-theme=dark] .pill.green, html[data-theme=dark] .evidence-status.observed { background: #283c28; color: #c5dc8c; }
+html[data-theme=dark] :is(th,td) { color: var(--ink); border-color: var(--line); }
+html[data-theme=dark] th { background: transparent; }
+html[data-theme=dark] :is(.table-wrap th,.scroll-table th) { background: var(--ui-surface); }
+html[data-theme=dark] :is(.stage-tab,.stage-tab.done) { background: transparent; color: var(--muted); }
+html[data-theme=dark] .stage-tab.current { background: var(--purple-pale); color: var(--purple); }
+html[data-theme=dark] :is(.assessment-summary p,.assessment-score>span,.assessment-score small,.assessment-score.score-pending strong,.score-empty,.official-empty,.official-result p,.question-feedback,.evidence-notes dt,.evidence-notes dd,.rubric-intro p,.rubric-language p,.rubric-dimension .criterion,.expected-evidence p,.anchor-grid p,.exam-version,.exam-programs,.exam-record-footer,.exam-notes,.exam-facts>div>span,.exam-filter-card label,.exam-library-filters select,.exam-current-target p,.comparison-row,.source p,.probe-list>div>span,.report-source,.report-moment p,.report-insight p,.report-next-steps p,.report-next-steps small) { color: var(--muted); }
+html[data-theme=dark] :is(.score-value,.official-total,.coverage-metrics strong,.exam-facts strong,.exam-library-stats strong,.timer,.step,.source a,.exam-source-links a,.exam-callout-source a,.insight-references a,.report-references a) { color: var(--purple); }
+html[data-theme=dark] :is(.stage-row,.disclosure-section,.optional-settings,.rule-imports,.answer-record,.source,.exam-details,.exam-facts,.exam-record-footer,.frozen-rubric,.calibration-row,.imu-advanced,.device-details,.report-details,.capture-settings,.measurements,.setting-divider) { border-color: var(--line); }
+html[data-theme=dark] :is(.source-tabs,.imu-reading,.imu-raw,.report-metric,.behavior-results>article,.report-moment,.reflection-panel,.report-next-steps li,.review-dialogue,.hand-info,.report-status,.message) { background: var(--ui-soft); border-color: var(--line); color: var(--ink); }
+html[data-theme=dark] .source-tab { background: transparent; color: var(--muted); border-color: transparent; }
+html[data-theme=dark] .source-tab.active { background: var(--ui-surface); color: var(--ink); }
+html[data-theme=dark] :is(.source-tab,.text-button):hover:not(:disabled) { background: var(--ui-raised); color: var(--purple); }
+html[data-theme=dark] .text-button { background: transparent; color: var(--purple); border-color: transparent; }
+html[data-theme=dark] .report-insight { background: transparent; border-color: var(--line); }
+html[data-theme=dark] :is(.imu-config,.review-inspector) { background: transparent; }
+html[data-theme=dark] :is(.review-preview,.timeline,.bar,.tilt-meter) { background: #30483b; }
+html[data-theme=dark] .transcript-turn { background: transparent; color: var(--ink); border-color: transparent; }
+html[data-theme=dark] .transcript-turn:hover { background: var(--ui-raised); }
+html[data-theme=dark] .transcript-turn[aria-current=true] { background: var(--purple-pale); border-color: var(--purple); }
+html[data-theme=dark] .timeline-event { background: #83d5ac; border: 0; }
+html[data-theme=dark] .timeline-event.unknown { background: #6b8074; }
+html[data-theme=dark] .timeline-event.manual { background: #d6b37b; }
+html[data-theme=dark] .timeline-event.posture { background: #d6b37b; }
+html[data-theme=dark] .timeline-cursor { background: #d8efde; }
+html[data-theme=dark] .message.error { background: #3a2725; color: #f2ac9f; }
+html[data-theme=dark] #toast { background: #dceee2; color: #12241c; border-color: var(--line); }
+
+@media(max-width:720px) {
+  .sidebar { position: relative; inset: auto; }
+  .sidebar-head .brand { margin-right: 48px; }
+  .sidebar-bottom, .sidebar-collapsed .sidebar-bottom { position: absolute; top: 16px; right: 72px; display: block; padding: 0; margin: 0; }
+  .sidebar-status { display: none; }
+  .theme-toggle, .sidebar-collapsed .theme-toggle { width: 44px; height: 44px; padding: 12px; justify-content: center; }
+  .theme-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}

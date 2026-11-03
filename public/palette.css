@@ -1,0 +1,117 @@
+:root {
+  --ui-accent: #087f70; --ui-accent-hover: #066b5e; --ui-on-accent: #fff;
+  --ui-light-bg: #f5f9f5; --ui-light-ink: #173e35; --ui-light-muted: #587069;
+  --ui-light-line: #d4e3da; --ui-light-soft: #eff6ef; --ui-light-accent-bg: #e7f5ee;
+  --ui-hero: #e5f3e8; --ui-stage: #173d32; --ui-surface: #fff;
+  --ui-capture-badge-bg: #102a22; --ui-capture-badge-ink: #e5f3eb;
+  --review-canvas-bg: #edf3eb; --review-hand-first: #176b58; --review-hand-second: #986d32;
+}
+html[data-palette=blue] {
+  --ui-accent: #245cb8; --ui-accent-hover: #174892;
+  --ui-light-bg: #f5f7fc; --ui-light-ink: #192f4a; --ui-light-muted: #5d6e83;
+  --ui-light-line: #d5ddea; --ui-light-soft: #eef3fc; --ui-light-accent-bg: #e8f0ff;
+  --ui-hero: #e7effc; --ui-stage: #1a304b;
+  --ui-capture-badge-bg: #112239; --ui-capture-badge-ink: #eef4ff;
+  --review-canvas-bg: #eef3fc; --review-hand-first: #245cb8;
+}
+html[data-palette=purple] {
+  --ui-accent: #7354b8; --ui-accent-hover: #5a3e98;
+  --ui-light-bg: #f8f6fb; --ui-light-ink: #34284a; --ui-light-muted: #756781;
+  --ui-light-line: #ded7e8; --ui-light-soft: #f3effa; --ui-light-accent-bg: #eee8fa;
+  --ui-hero: #eee7f8; --ui-stage: #302542;
+  --ui-capture-badge-bg: #241b35; --ui-capture-badge-ink: #f4efff;
+  --review-canvas-bg: #f3effa; --review-hand-first: #7354b8;
+}
+html[data-palette=mono] {
+  --ui-accent: #202328; --ui-accent-hover: #080a0d;
+  --ui-light-bg: #f7f7f7; --ui-light-ink: #202328; --ui-light-muted: #65676b;
+  --ui-light-line: #dadddf; --ui-light-soft: #f0f0f0; --ui-light-accent-bg: #e8e9ea;
+  --ui-hero: #eceeef; --ui-stage: #25272a;
+  --ui-capture-badge-bg: #181a1d; --ui-capture-badge-ink: #f7f7f7;
+  --review-canvas-bg: #f0f0f0; --review-hand-first: #202328; --review-hand-second: #70757b;
+}
+html[data-theme=light] {
+  --ink: var(--ui-light-ink); --muted: var(--ui-light-muted); --line: var(--ui-light-line);
+  --bg: var(--ui-light-bg); --paper: var(--ui-light-bg); --purple: var(--ui-accent);
+  --teal: var(--ui-accent); --purple-pale: var(--ui-light-accent-bg); --lime: var(--ui-light-accent-bg);
+}
+html[data-theme=light] body { background: var(--bg); color: var(--ink); }
+html[data-theme=light] body[data-host-view] { background: transparent; }
+html[data-theme=light] :is(h1,h2,h3,h4,strong,b,summary) { color: var(--ink); }
+html[data-theme=light] :is(.subtle,.page-note,.muted,.field-help,.caption,.source-name,.source p,.exam-version,.exam-programs,.exam-record-footer,.exam-facts>div>span,label.field) { color: var(--muted); }
+html[data-theme=light] :is(.card,.sidebar,.assessment-summary,.device-statuses,.exam-record,.exam-library-intro,.viewer-column,.imu-section,.capture-settings,.settings,.results-section,.review-section) { background: #fff; border-color: var(--line); color: var(--ink); }
+html[data-theme=light] :is(.mm-shell,.mm-header) { background: transparent; }
+html[data-theme=light] :is(input,select,textarea) { color: var(--ink); background: #fff; border-color: var(--line); }
+html[data-theme=light] :is(button,.button) { color: var(--ui-on-accent); background: var(--ui-accent); border-color: var(--ui-accent); }
+html[data-theme=light] :is(button,.button):hover:not(:disabled) { background: var(--ui-accent-hover); }
+html[data-theme=light] :is(button.secondary,.button.secondary,button.ghost,.button.ghost,.sidebar-toggle,.theme-toggle,.button:not(.primary)) { background: transparent; color: var(--ink); border-color: var(--line); }
+html[data-theme=light] :is(button.secondary,.button.secondary,button.ghost,.button.ghost,.sidebar-toggle,.theme-toggle,.button:not(.primary)):hover:not(:disabled) { background: var(--ui-light-soft); }
+html[data-theme=light] :is(.hero button,.hero .button,.button.primary) { background: var(--ui-accent); color: #fff; border-color: var(--ui-accent); }
+html[data-theme=light] :is(.next-practice,.rubric-intro,.rubric-language,.coverage-metrics,.expected-evidence,.anchor-grid,.original-answer,.bubble,.help,.feedback,.rubric-summary span,.rubric-contract span,.sensor-cell,.upload,.exam-library-callout,.exam-stage-list>div,.exam-formula,.imu-reading,.imu-raw,.report-metric,.behavior-results>article,.report-moment,.reflection-panel,.report-next-steps li,.review-dialogue,.hand-info,.message) { background: var(--ui-light-soft); color: var(--ink); border-color: var(--line); }
+html[data-theme=light] .turn.candidate .bubble { background: var(--ui-light-accent-bg); color: var(--ink); }
+html[data-theme=light] .message.error { background: #fff0ed; color: #9e4935; border-color: #e3bdb7; }
+html[data-theme=light] :is(.report-insight,.imu-config,.review-inspector,.improvement-card,.probe-list>div) { background: transparent; }
+html[data-theme=light] .hero { background: var(--ui-hero); }
+html[data-theme=light] .hero:after { background: linear-gradient(90deg,var(--ui-hero),color-mix(in srgb,var(--ui-hero) 88%,transparent) 48%,transparent); }
+html[data-theme=light] .hero h2 { color: var(--ink); }
+html[data-theme=light] .hero p { color: var(--muted); }
+html[data-theme=light] .stage { background: var(--ui-stage); }
+html[data-theme=light] .stage .empty h2 { color: #f0f6f1; }
+html[data-theme=light] :is(.source-tabs,.pill,.pill.green,.exam-tag,.practice-icon,.dimension-weight,.rubric-label,.evidence-status.observed,.stage-tab.current) { background: var(--ui-light-accent-bg); color: var(--ui-accent); border-color: var(--line); }
+html[data-theme=light] .sidebar nav a { color: var(--muted); }
+html[data-theme=light] .sidebar nav a:hover { background: var(--ui-light-soft); color: var(--ink); }
+html[data-theme=light] .sidebar nav a.active { background: var(--ui-light-accent-bg); color: var(--ui-accent); }
+html[data-theme=light] .source-tab { background: transparent; color: var(--muted); border: 0; }
+html[data-theme=light] .source-tab.active { background: #fff; color: var(--ui-accent); }
+html[data-theme=light] .source-tab:hover { background: var(--ui-light-soft); }
+html[data-theme=light] .text-button { background: transparent; color: var(--ui-accent); border: 0; }
+html[data-theme=light] :is(.score-value,.official-total,.coverage-metrics strong,.exam-facts strong,.exam-library-stats strong,.timer,.step,.source a,.exam-source-links a,.insight-references a,.report-references a) { color: var(--ui-accent); }
+html[data-theme=light] .transcript-turn { background: transparent; color: var(--ink); border-color: transparent; }
+html[data-theme=light] .transcript-turn[aria-current=true] { background: var(--ui-light-accent-bg); border-color: var(--ui-accent); }
+html[data-theme=light] .timeline-event { background: var(--ui-accent); border: 0; }
+html[data-theme=light] .timeline-event.posture { background: #a77a36; }
+html[data-theme=light] .timeline-event.manual { background: #bc7337; }
+html[data-theme=light] .timeline-event.unknown { background: #9aa4a1; }
+html[data-theme=light][data-palette=mono] :is(.pill,.evidence-status,.exam-tag) { background: #eceeef; color: #4a4e54; }
+html[data-theme=light][data-palette=mono] .hero img { filter: grayscale(1); }
+html[data-theme=light][data-palette=mono] :is(.timeline-event.posture,.timeline-event.manual) { background: #70757b; }
+
+/* Corrections shared by every palette and both appearance modes. */
+.source-search-actions { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px 32px; margin-top: 24px; }
+.source-search-actions .page-note { margin: 0; max-width: 64em; min-width: 0; }
+.source-search-actions .form-actions { margin: 0 0 0 auto; padding: 0; flex: none; }
+#search-form .source-primary, #source-form .source-primary { background: var(--purple); border-color: var(--purple); color: var(--ui-on-accent); opacity: 1; }
+html[data-theme=dark] { --ui-on-accent: #12241c; --review-canvas-bg: #203229; --review-hand-first: #8cdec0; --review-hand-second: #d6b37b; }
+html[data-theme=dark] .report-details { background: var(--ui-surface); color: var(--ink); }
+html[data-theme=dark] :is(.rubric-label,.rubric-footnote,.rubric-summary span,.dimension-index,.evidence-id,.evidence-notes dt,.evidence-record-foot .subtle,.question-index,.question-statuses>span,.coaching-block .subtle,.official-result>span,.evidence-question,.pending-records p,.unobserved-note) { color: var(--muted); }
+html[data-theme=dark] :is(summary,.frozen-rubric>summary) { color: var(--ink); }
+html[data-theme] :is(small,.coverage-metrics>div>span,.evidence-empty p,.sensor-cell .subtle,.expected-evidence>span,.rubric-language .eyebrow) { color: var(--muted); }
+html[data-theme] .rubric-footnote a { color: var(--teal); }
+.frozen-rubric > summary { font-size: var(--fs-body); font-weight: 500; line-height: 1.6; }
+html[data-theme=dark] :is(.tilt-meter i.over,.timeline-event.posture) { background: #d6b37b; }
+
+.appearance-actions { display: grid; gap: 8px; }
+.palette-panel { position: fixed; left: calc(var(--sidebar-width) + 12px); bottom: 24px; width: 240px; padding: 16px; background: #fff; color: var(--ink); border: .5px solid var(--line); border-radius: 6px; z-index: 30; }
+.palette-panel h2 { font-size: var(--fs-body); margin: 0 0 16px; }
+.palette-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.palette-options button { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 44px; padding: 10px; background: transparent; color: var(--ink); border: .5px solid var(--line); border-radius: 6px; font-size: var(--fs-meta); }
+.palette-options button[aria-pressed=true] { border-color: var(--purple); background: var(--purple-pale); }
+.palette-swatch { width: 16px; height: 16px; flex: none; border-radius: 50%; }
+.swatch-green { background: #087f70; }.swatch-blue { background: #245cb8; }.swatch-purple { background: #7354b8; }.swatch-mono { background: #202328; }
+html[data-theme=light] .palette-options button { background: transparent; color: var(--ink); border-color: var(--line); }
+html[data-theme=light] .palette-options button[aria-pressed=true] { background: var(--purple-pale); border-color: var(--purple); }
+html[data-theme=dark] .palette-panel { background: var(--ui-surface); }
+html[data-theme=dark] .palette-options button { background: transparent; color: var(--ink); border-color: var(--line); }
+html[data-theme=dark] .palette-options button[aria-pressed=true] { background: var(--purple-pale); border-color: var(--purple); }
+@media(max-width:720px) {
+  .source-search-actions { align-items: stretch; flex-direction: column; }
+  .source-search-actions .form-actions { align-self: flex-end; }
+  .appearance-actions { display: flex; gap: 8px; }
+  .sidebar-head .brand { margin-right: 100px; }
+  .palette-panel { left: auto; right: 20px; top: 72px; bottom: auto; max-width: calc(100vw - 40px); }
+}
+@media(max-width:380px) { .brand span { font-size: var(--fs-meta); } }
+
+/* Camera HUD uses the same palette as its preview surface. Keep record state logic unchanged. */
+:is(.stage-label span,.record-badge,.detection-badge) { background: var(--ui-capture-badge-bg); color: var(--ui-capture-badge-ink); }
+html[data-theme=dark] { --ui-capture-badge-bg: #101c16; --ui-capture-badge-ink: #e5efe8; }

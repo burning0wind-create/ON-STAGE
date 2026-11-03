@@ -10,9 +10,11 @@ import { TEMPLATE_SEEDS,STAGES,DIMENSIONS,fail,required } from './domain.js';
 import { targetLabel } from '../public/catalog-state.js';
 import { getExamLibrary } from './exam-library.js';
 import { reportMarkdown } from './report-export.js';
+import {attachCapture,getCapture} from './multimodal.js';
+import {modelSettings,validateModelSettings,testModelSettings,saveModelSettings} from './model-settings.js';
 
 const publicDir=fileURLToPath(new URL('../public/',import.meta.url));
-const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.json':'application/json; charset=utf-8'};
+const mime={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.json':'application/json; charset=utf-8','.wasm':'application/wasm','.webm':'video/webm','.otf':'font/otf'};
 function json(res,data,status=200) {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(data));}
 async function body(req,max=24*1024*1024) {
   let n=0;const chunks=[];
@@ -20,8 +22,9 @@ async function body(req,max=24*1024*1024) {
   return Buffer.concat(chunks);
 }
 async function input(req) {try{return JSON.parse((await body(req,1024*1024)).toString('utf8'));}catch(e){if(e.status)throw e;fail('JSON 请求格式无效');}}
-export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=modelFromEnv(),env=process.env}={}) {
+export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=modelFromEnv(),env=process.env,settingsFile=fileURLToPath(new URL('../.env.local',import.meta.url)),testConnection=testModelSettings}={}) {
   const app=new OnStage(store,llm);
+  let runtimeEnv={...env},settingsBusy=false;
   const server=http.createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','same-origin');
@@ -32,7 +35,32 @@ export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=
       if(!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) fail('原型仅允许本机访问',403);
       if(req.headers.origin && ![`http://${host}`].includes(req.headers.origin)) fail('请求来源无效',403);
       const url=new URL(req.url,`http://${host}`), route=url.pathname;
+      if(route.startsWith('/multimodal/')){
+        res.setHeader('X-Frame-Options','SAMEORIGIN');
+        res.setHeader('Content-Security-Policy',"default-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'none'");
+      }
+      const captureRoute=route.match(/^\/api\/sessions\/([a-zA-Z0-9_-]+)\/multimodal(?:\/([a-zA-Z0-9_-]+))?$/);
+      if(captureRoute){
+        const [,sid,key]=captureRoute;
+        if(req.method==='GET')return json(res,key?getCapture(store,sid,key):(app.get(sid).multimodal||[]));
+        if(req.method==='POST'&&!key){if(app.busy.has(sid))fail('本场正在保存回答，请稍后重试采集保存',409);let data;try{data=JSON.parse((await body(req,64*1024*1024)).toString('utf8'));}catch(e){if(e.status)throw e;fail('多模态JSON格式无效');}if(app.busy.has(sid))fail('本场正在保存回答，请稍后重试采集保存',409);return json(res,attachCapture(store,sid,data),201);}
+      }
       if(route==='/api/config'&&req.method==='GET') return json(res,{name:'ON STAGE',mode:llm?'llm':'demo',searchConfigured:!!env.SEARCH_API_KEY,templates:TEMPLATE_SEEDS,stages:STAGES,dimensions:DIMENSIONS});
+      if(route==='/api/model-settings'&&req.method==='GET')return json(res,modelSettings(runtimeEnv));
+      if(['/api/model-settings','/api/model-settings/test'].includes(route)&&req.method==='POST'){
+        if(!req.headers['content-type']?.startsWith('application/json'))fail('请使用 JSON 请求',415);
+        if(settingsBusy||app.busy.size)fail('正在处理请求，请稍后再修改模型设置',409);
+        settingsBusy=true;
+        try{
+          const settings=validateModelSettings(await input(req),runtimeEnv);
+          await testConnection(settings);
+          if(route.endsWith('/test'))return json(res,{ok:true,message:'连接成功'});
+          if(app.busy.size)fail('正在保存面试回答，请稍后再启用模型',409);
+          saveModelSettings(settingsFile,settings);
+          runtimeEnv={...runtimeEnv,...settings};llm=modelFromEnv(runtimeEnv);app.llm=llm;
+          return json(res,{...modelSettings(runtimeEnv),mode:'llm'});
+        }finally{settingsBusy=false;}
+      }
       if(route==='/api/exam-library'&&req.method==='GET') return json(res,getExamLibrary());
       if(route==='/api/materials'&&req.method==='POST') {
         const bytes=await body(req);
@@ -67,7 +95,8 @@ export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=
           const s=app.get(sid);if(!s.report) fail('请先结束面试并生成报告');
           const markdown=url.searchParams.get('format')==='md';
           res.writeHead(200,{'Content-Type':markdown?'text/markdown; charset=utf-8':'application/json; charset=utf-8','Content-Disposition':`attachment; filename="on-stage-${sid}.${markdown?'md':'json'}"`});
-          return res.end(markdown?reportMarkdown(s):JSON.stringify({profile:s.profile,turns:s.turns,report:s.report},null,2));
+          const multimodal=s.multimodal||[];
+          return res.end(markdown?reportMarkdown(s)+(multimodal.length?'\n\n## 多模态行为复盘\n'+multimodal.map(c=>`\n- 片段 ${c.id}：${(c.duration_ms/1000).toFixed(1)}秒。${c.analysis.summary}`).join('\n')+'\n\n动作观察不计入专业训练分。':''):JSON.stringify({profile:s.profile,turns:s.turns,report:s.report,multimodal},null,2));
         }
       }
       if(route==='/api/sources'&&req.method==='GET') return json(res,store.list('sources'));

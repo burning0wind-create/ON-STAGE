@@ -90,7 +90,7 @@ export function buildReport(session, previous=[]) {
     const comparable=previous.filter(p=>p.id!==session.id&&p.status==='complete'&&p.identityScope===session.identityScope&&p.rubricHash===session.rubricHash&&p.mode===session.mode&&p.report?.rubric?.version===session.rubric.version&&p.report?.rubric?.id===session.rubric.id).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
     const last=comparable[0];
     const comparison=last?{sessionId:last.id,attempt:last.profile.attempt,items:report.dimensions.map(d=>{const prior=last.report.dimensions.find(x=>x.id===d.id);return {id:d.id,name:d.name,change:d.score!==null&&prior?.score!=null&&d.status==='observed'&&prior.status==='observed'?Math.round((d.score-prior.score)*10)/10:null};})}:null;
-    const sensorSummary=['camera','audio','hand','gaze'].map(channel=>({channel,count:session.sensors.filter(e=>e.channel===channel).length,status:session.sensors.some(e=>e.channel===channel)?'observed':'not_connected'}));
+    const sensorSummary=['camera','audio','hand','imu','gaze'].map(channel=>({channel,count:session.sensors.filter(e=>e.channel===channel).length,status:session.sensors.some(e=>e.channel===channel)?'observed':'not_connected'}));
     return {...report,rubric:session.rubric,generatedAt:new Date().toISOString(),mode:session.mode,official:session.official??{total:null,status:'unassessed',items:[]},comparison,sensorSummary,improvements:report.improvements.slice(0,2),note:'覆盖范围与回答质量分别呈现。语言与专业分开；材料自述未独立核验，设备状态不进入内容分数。'};
   }
   const answers=session.turns.filter(t=>t.role==='candidate');
@@ -103,6 +103,6 @@ export function buildReport(session, previous=[]) {
   const comparable=previous.filter(p=>p.id!==session.id&&p.status==='complete'&&p.identityScope===session.identityScope&&p.rubricHash===session.rubricHash&&p.mode===session.mode&&p.report).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   const last=comparable[0];
   const improvements=dimensions.flatMap(d=>d.evidence.filter(e=>e.improvement).map(e=>({dimension:d.name,suggestion:e.improvement,checked:false}))).slice(0,12);
-  const sensorSummary=['camera','audio','hand','gaze'].map(channel=>({channel,count:session.sensors.filter(e=>e.channel===channel).length,status:session.sensors.some(e=>e.channel===channel)?'observed':'not_connected'}));
+  const sensorSummary=['camera','audio','hand','imu','gaze'].map(channel=>({channel,count:session.sensors.filter(e=>e.channel===channel).length,status:session.sensors.some(e=>e.channel===channel)?'observed':'not_connected'}));
   return {generatedAt:new Date().toISOString(),mode:session.mode,dimensions,trainingTotal,coverage:{assessed:coverage,total:DIMENSIONS.length,answered:answers.length,stageIds:[...new Set(answers.map(a=>a.stageId))]},official:session.official??{total:null,status:'unassessed',items:[]},improvements,sensorSummary,comparison:last?{sessionId:last.id,attempt:last.profile.attempt,items:dimensions.map(d=>({id:d.id,name:d.name,change:d.score!==null&&last.report.dimensions.find(x=>x.id===d.id)?.score!=null?Math.round((d.score-last.report.dimensions.find(x=>x.id===d.id).score)*10)/10:null}))}:null,note:'内容评分与多模态状态观察分开；未观察到不等于低分。'};
 }

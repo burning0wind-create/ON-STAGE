@@ -32,7 +32,7 @@ function dimensionSummary(dimensions,{language=false,legacy=false}={}) {
 export function reportMarkdown(session) {
   const s=session??{},p=s.profile??{},r=s.report??{},rubric=r.rubric??s.rubric;
   const legacy=!rubric;
-  const out=['# ON STAGE · 升学面试复盘',`${inline(p.nickname)} · ${inline(targetLabel(p))}`,`第 ${inline(p.attempt)} 次 · ${inline(p.interviewTime)}；招生年份：${inline(p.year)}；类型：${inline(p.admissionType)}`,`场次 ID：${inline(s.id)}；生成时间：${inline(r.generatedAt||'未记录')}`,`模式：${s.mode==='demo'?'流程演示':s.mode==='llm'?'模型评价':'未完成模型评价'}；评价状态：${legacy?'历史量表记录':state(r.assessmentStatus)}`,`专业训练总分：${number(r.trainingTotal,' / 100')}；院校标准练习总分：${number(r.official?.total,' / 100')}`,inline(r.note||'未观察到不等于低分。练习反馈不代表官方考试成绩。')];
+  const out=['# ON STAGE · 升学面试复盘',`${inline(p.nickname)} · ${inline(targetLabel(p))}`,`第 ${inline(p.attempt)} 次 · ${inline(p.interviewTime)}；招生年份：${inline(p.year)}；类型：${inline(p.admissionType)}`,`场次 ID：${inline(s.id)}；生成时间：${inline(r.generatedAt||'未记录')}`,`模式：${s.contentRegrade?.method==='assistant_rubric_review'?'本助手按原量表补评':s.mode==='demo'?'流程演示':s.mode==='llm'?'模型评价':'未完成模型评价'}；评价状态：${legacy?'历史量表记录':state(r.assessmentStatus)}`,`专业训练总分：${number(r.trainingTotal,' / 100')}；院校标准练习总分：${number(r.official?.total,' / 100')}`,inline(r.note||'未观察到不等于低分。练习反馈不代表官方考试成绩。')];
   if(legacy)out.push('历史报告没有新版证据状态和量表快照；保留原始结果，不补造新版覆盖状态。');
   const c=r.coverage??{};
   out.push('## 覆盖范围',`专业已观察 ${number(c.assessed)} / ${number(c.total)}；部分观察 ${number(c.partial)}；未充分考察 ${number(c.unassessed)}；已作答 ${number(c.answered)}；已跳过 ${number(c.skipped)}。`,`已作答环节：${list(c.stageIds).map(inline).join('、')||'无'}`);
@@ -71,5 +71,10 @@ export function reportMarkdown(session) {
   if(r.comparison)out.push('## 同条件历史对照',`对照场次：${inline(r.comparison.sessionId)}；第 ${inline(r.comparison.attempt)} 次。仅显示可比较的已观察维度。`,...list(r.comparison.items).map(d=>`- ${inline(d.name??d.id)}：${typeof d.change==='number'?`${d.change>0?'+':''}${d.change}`:'不可比较'}`));
   out.push('## 对话记录');
   for(const t of list(s.turns))out.push(`### ${t.role==='candidate'?'学生':'考官'} · ${inline(t.id)} · ${inline(t.stageId)}`,t.role==='candidate'?`对应题目 ID：${inline(t.questionId||'未记录')}${t.assisted?'；辅助练习':''}`:'',t.skipped?'本题已跳过；无分数，不作为答错。':quote(t.content));
+  if(s.contentRegrade)out.push('## 内容补评来源',inline(s.contentRegrade.sourceLabel||s.contentRegrade.method),`评阅记录：${inline(s.contentRegrade.reviewId||'')}；时间：${inline(s.contentRegrade.at)}`,inline(s.contentRegrade.limitations||''));
+  if(r.multimodalEvaluation?.captures?.length){
+    out.push('## 多模态辅助指数',r.multimodalEvaluation.scope,'指数不是表现优劣分，缺失数据不补零。');
+    for(const capture of r.multimodalEvaluation.captures){out.push(`### 片段 ${inline(capture.captureId)}`);for(const item of capture.scores.items)out.push(`- ${inline(item.label)}：${item.value===null?'未评价':number(item.value,' / 100')}（${inline(item.status_label)}）。${inline(item.detail)} ${inline(item.recommendation)}`);out.push(`规则版本：${inline(capture.scores.version)}。公式与门槛为项目操作定义。`);}
+  }
   return out.filter(x=>x!==undefined&&x!=='').join('\n\n')+'\n';
 }

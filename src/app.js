@@ -1,5 +1,6 @@
 import { id,hash,fail,required,cacheKey,sessionIdentity,validateStages,validateOfficialRubric,makePlan,sourceRecord } from './domain.js';
 import { preparePlan,evaluateAnswer,evaluateOfficial,buildReport,unassessedEvaluation } from './ai.js';
+import {summarizeAuxiliaryCaptures} from '../public/multimodal/auxiliary-scores.js';
 import { resolveCatalogTarget } from './catalog.js';
 import { buildTrainingRubric } from '../public/rubrics.js';
 import { getExamRecord } from './exam-library.js';
@@ -102,6 +103,7 @@ export class OnStage {
         try{s.official=await evaluateOfficial(this.llm,s);}catch{s.official={status:'unavailable',total:null,items:[],note:'模型院校评分暂不可用，未生成成绩。'};}
         s.activeMs+=Date.now()-Date.parse(s.lastResumedAt);s.status='complete';s.completedAt=new Date().toISOString();
         s.report=buildReport(s,this.store.list('sessions'));
+        s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);
       } else fail('不支持的面试操作');
       return this.save(s);
     });
@@ -113,7 +115,7 @@ export class OnStage {
     if(!Array.isArray(events)||events.length>200) fail('事件数量无效');
     if(s.sensors.length+events.length>10000) fail('状态事件数量已达上限');
     for(const e of events) {
-      if(!['camera','audio','hand','gaze'].includes(e.channel)||typeof e.atMs!=='number'||!Number.isFinite(e.atMs)||e.atMs<0||!['device_state','speech_interval','tracking_state'].includes(e.type)) fail('状态事件无效');
+      if(!['camera','audio','hand','imu','gaze'].includes(e.channel)||typeof e.atMs!=='number'||!Number.isFinite(e.atMs)||e.atMs<0||!['device_state','speech_interval','tracking_state'].includes(e.type)) fail('状态事件无效');
       s.sensors.push({channel:e.channel,type:e.type,atMs:e.atMs,value:String(e.value??'').slice(0,120),source:'client',receivedAt:new Date().toISOString()});
     }
     return this.save(s);
