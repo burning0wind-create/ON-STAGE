@@ -1,9 +1,9 @@
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const personas={
-  english:{name:'英语表达考官',label:'ENGLISH CONVERSATION',focus:'倾听你的项目故事与表达'},
-  portfolio:{name:'作品集考官',label:'PORTFOLIO REVIEW',focus:'从作品中理解你的设计判断'},
-  design:{name:'专业问答考官',label:'DESIGN DISCUSSION',focus:'一起讨论研究、方法与设计决策'},
-  ethics:{name:'综合素质考官',label:'VALUES & REFLECTION',focus:'关注你的反思、责任与个人贡献'},
+  english:{name:'英语表达考官',focus:'英文自我介绍、作品介绍、研究兴趣与追问。',image:'/assets/examiners/english.png'},
+  portfolio:{name:'作品集答辩考官',focus:'项目背景、个人贡献、设计决策与验证结果。',image:'/assets/examiners/portfolio.png'},
+  design:{name:'设计研究方法考官',focus:'研究问题、用户研究、证据分析与验证方法。',image:'/assets/examiners/research.png'},
+  ethics:{name:'综合素质与学习规划考官',focus:'升学动机、研究计划、协作经历与反思。',image:'/assets/examiners/qualities.png'},
 };
 const materials={resume:'个人简历',portfolio:'作品集'};
 const phaseLabels={speaking:'考官正在提问',connecting:'正在连接麦克风',listening:'正在倾听你的回答',confirm:'等待你确认回答状态',processing:'正在保存回答',paused:'面试已暂停',finishing:'正在保存回答',error:'语音暂时中断',unsupported:'请使用文字辅助',ready:'准备开始对话',idle:'准备开始对话',blocked:'点击开启语音面试'};
@@ -20,7 +20,7 @@ export function compactInterviewProgress(s){
 function stageRail(s){
   const stages=s.profile?.stages??[],index=Math.max(0,Math.min(s.stageIndex??0,stages.length-1));
   const current=stages[index]??{},count=(s.turns??[]).filter(t=>t.role==='interviewer'&&t.stageId===current.id).length;
-  return `<section class="iv-journey" aria-label="本场面试环节进度"><div class="iv-journey-heading"><div><span class="iv-kicker">当前环节 <span>${String(index+1).padStart(2,'0')} / ${String(stages.length).padStart(2,'0')}</span></span><h2>${esc(current.name??'面试对话')}</h2></div><span class="iv-question-position">本环节 · 第 ${Math.max(1,count)} 题<span>建议 ${esc(current.minutes??'—')} 分钟</span></span></div><ol class="iv-stage-rail" style="--iv-stage-count:${Math.max(1,stages.length)}">${stages.map((stage,i)=>`<li class="iv-stage-step ${i<index?'is-done':i===index?'is-current':'is-upcoming'}" ${i===index?'aria-current="step"':''}><span class="iv-step-dot" aria-hidden="true">${i<index?'✓':String(i+1).padStart(2,'0')}</span><div><strong>${esc(stage.name)}</strong><span>${i<index?'已结束':i===index?s.status==='paused'?'已暂停':'正在进行':'待进行'}</span></div></li>`).join('')}</ol></section>`;
+  return `<section class="iv-journey" aria-label="本场面试环节进度"><div class="iv-journey-heading"><div><span class="iv-kicker">当前环节 <span>${String(index+1).padStart(2,'0')} / ${String(stages.length).padStart(2,'0')}</span></span><h2>${esc(current.name??'面试对话')}</h2></div><span class="iv-question-position">本环节 · 第 ${Math.max(1,count)} 题<span>建议 ${esc(current.minutes??'—')} 分钟</span></span></div><ol class="iv-stage-rail">${stages.map((stage,i)=>`<li class="iv-stage-step ${i<index?'is-done':i===index?'is-current':'is-upcoming'}" ${i===index?'aria-current="step"':''}><span class="iv-step-dot" aria-hidden="true">${i<index?'✓':String(i+1).padStart(2,'0')}</span><div><strong>${esc(stage.name)}</strong><span>${i<index?'已结束':i===index?s.status==='paused'?'已暂停':'正在进行':'待进行'}</span></div></li>`).join('')}</ol></section>`;
 }
 
 function referencePanel(s,stage){
@@ -29,24 +29,22 @@ function referencePanel(s,stage){
   return `<details class="iv-reference"><summary>本场材料与面试依据 <span>查看</span></summary><div class="iv-reference-body"><p>${esc(name)}</p><p class="iv-note">${esc(stage.name)} · ${esc(s.profile?.year)} ${esc(s.profile?.admissionType)}</p><div class="iv-material-links">${(s.materials??[]).filter(m=>Object.hasOwn(materials,m.kind)).map(m=>`<a class="button secondary" href="/api/materials/${encodeURIComponent(m.id)}/file" target="_blank" rel="noopener noreferrer">查看${materials[m.kind]} ↗</a>`).join('')}</div>${gaps.length?`<p class="iv-note">${esc(gaps.join('；'))}</p>`:''}${warnings.length?`<div class="iv-session-notes"><h3>本场说明</h3>${warnings.map(w=>`<p>${esc(w)}</p>`).join('')}</div>`:''}<p class="iv-note">内容评价与语言反馈分开；面试结束后查看完整复盘。</p></div></details>`;
 }
 
-export function renderInterview(s,{config={},answerDraft='',speechConsent=false,camera=false,voiceState={phase:'ready'},imagePath='/assets/examiner-personas.jpg'}={}){
+export function renderInterview(s,{config={},answerDraft='',speechConsent=false,camera=false,voiceState={phase:'ready'},imagePath}={}){
   const stages=s.profile?.stages??[],stage=stages[s.stageIndex??0]??{},persona=personas[stage.id]??personas.design;
   const turns=s.turns??[],last=turns.at(-1),question=[...turns].reverse().find(t=>t.role==='interviewer');
   const answered=last?.role==='candidate',paused=s.status==='paused',phase=paused?'paused':voiceState.phase??'ready';
   const supported=voiceState.recognitionSupported!==false,interim=voiceState.interimText??'',draft=String(answerDraft??''),overLimit=draft.length>20000;
   const finalText=hasText(interim)&&typeof voiceState.finalText==='string'?voiceState.finalText:draft;
-  const safeImage=['/assets/examiner-personas.jpg','/assets/examiners.webp','/assets/examiners.png','/assets/examiner.webp'].includes(imagePath)?imagePath:'/assets/examiner.webp';
+  const safeImage=imagePath===undefined?persona.image:[...Object.values(personas).map(p=>p.image),'/assets/examiner.webp'].includes(imagePath)?imagePath:'/assets/examiner.webp';
   const canComplete=!paused&&!overLimit&&!['speaking','connecting','processing','finishing'].includes(phase)&&(hasText(draft)||hasText(interim));
   const isListening=phase==='listening',isBusy=['speaking','connecting','processing','finishing'].includes(phase),showStart=!['speaking','connecting','listening','confirm','processing','finishing'].includes(phase);
   const nextHint=s.stageIndex<stages.length-1?'确认后保存回答，进入下一环节。':'确认后保存回答，生成本场复盘。';
   return `<div class="iv-experience" id="interview-experience" data-voice-phase="${esc(phase)}">
     ${stageRail(s)}
     <div class="iv-stage-layout"><div class="iv-examiner-column">
-      <section class="iv-scene ${safeImage==='/assets/examiner.webp'?'iv-single-image':''} iv-persona-${Object.hasOwn(personas,stage.id)?stage.id:'design'}" id="interview-scene" data-voice-phase="${esc(phase)}" aria-label="${esc(persona.name)}虚拟练习场景">
-        <div class="iv-portrait" style="background-image:url('${safeImage}')" role="img" aria-label="虚构的${esc(persona.name)}形象"></div><div class="iv-scene-shade"></div>
-        <div class="iv-scene-top"><span class="iv-virtual-badge">虚拟考官 · ${esc(stage.name)}</span><span class="iv-presence"><i aria-hidden="true"></i><span id="voice-state-label">${phaseLabel(phase,paused)}</span></span></div>
-        <div class="iv-examiner-identity"><span>${persona.label}</span><h3>${persona.name}</h3><p>${persona.focus}</p></div>
-        <div class="iv-scene-bottom"><p class="iv-subtitles" aria-hidden="true">${paused?'本场已暂停，准备好后继续。':esc(question?.content??'准备好后，考官将开始提问。')}</p><div class="iv-sound-bars" aria-hidden="true">${Array.from({length:5},()=>'<i></i>').join('')}</div></div>
+      <section class="iv-scene iv-single-image iv-persona-${Object.hasOwn(personas,stage.id)?stage.id:'design'}" id="interview-scene" data-voice-phase="${esc(phase)}" aria-label="${esc(persona.name)}虚拟练习场景">
+        <div class="iv-photo-frame"><img class="iv-portrait" src="${safeImage}" alt="虚构的${esc(persona.name)}形象" width="421" height="237" fetchpriority="high"><div class="iv-scene-top"><span class="iv-virtual-badge">虚拟考官 · ${esc(stage.name)}</span><span class="iv-presence"><i aria-hidden="true"></i><span id="voice-state-label">${phaseLabel(phase,paused)}</span></span></div></div>
+        <div class="iv-scene-footer"><div class="iv-examiner-identity"><h3>${persona.name}</h3><p>${persona.focus}</p></div><div class="iv-sound-bars" aria-hidden="true">${Array.from({length:5},()=>'<i></i>').join('')}</div></div>
       </section>
       <div class="iv-scene-controls"><button type="button" class="secondary" data-action="voice-repeat" id="voice-repeat" ${paused||!question||phase==='finishing'?'disabled':''}><span aria-hidden="true">↻</span> 重复问题</button><button type="button" class="secondary" data-control="${paused?'resume':'pause'}">${paused?'继续面试':'暂停面试'}</button><button type="button" class="ghost iv-camera-control" data-action="camera">${camera?'关闭我的画面':'开启我的画面'}</button><button type="button" class="ghost iv-end-control" data-control="finish">结束面试</button></div>
       ${referencePanel(s,stage)}

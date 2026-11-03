@@ -12,7 +12,7 @@ test('环节进度突出当前步骤，按实际问题计数且不以评分代�
   assert.match(html,/iv-stage-step is-done/);assert.match(html,/iv-stage-step is-current/);assert.match(html,/iv-stage-step is-upcoming/);
   assert.match(html,/本环节 · 第 1 题/);assert.doesNotMatch(html,/progress-donut|专业评分完成度|stroke-dasharray/);
   const s=session();s.turns.push({role:'interviewer',stageId:'portfolio',content:'再解释一条依据。'});assert.match(renderInterview(s),/本环节 · 第 2 题/);
-  s.profile.stages=[stages[1]];s.stageIndex=0;const one=renderInterview(s);assert.match(one,/--iv-stage-count:1/);assert.equal((one.match(/class="iv-stage-step /g)||[]).length,1);assert.match(one,/01 \/ 01/);
+  s.profile.stages=[stages[1]];s.stageIndex=0;const one=renderInterview(s);assert.doesNotMatch(one,/\sstyle=/);assert.equal((one.match(/class="iv-stage-step /g)||[]).length,1);assert.match(one,/01 \/ 01/);
 });
 
 test('语音是主要入口，文字辅助保留合法表单、转写节点和明确提交动作',()=>{
@@ -25,13 +25,24 @@ test('语音是主要入口，文字辅助保留合法表单、转写节点和�
   assert.doesNotMatch(html,/<textarea[^>]*required/);
 });
 
-test('不同环节使用独立虚拟考官位置信息；不支持语音时自动展开文字辅助',()=>{
+test('不同环节使用Figma原考官图片；不支持语音时自动展开文字辅助',()=>{
   const s=session();
-  for(let i=0;i<stages.length;i++){s.stageIndex=i;const html=renderInterview(s);assert.match(html,new RegExp('iv-persona-'+stages[i].id));assert.match(html,/examiner-personas\.jpg/);assert.match(html,/虚拟考官/);}
+  const files=['english','portfolio','research','qualities'];
+  for(let i=0;i<stages.length;i++){s.stageIndex=i;const html=renderInterview(s);assert.match(html,new RegExp('iv-persona-'+stages[i].id));assert.match(html,new RegExp('src="/assets/examiners/'+files[i]+'\\.png"'));assert.match(html,/虚拟考官/);assert.doesNotMatch(html,/\sstyle=|figma\.com|examiner-personas/);}
   const fallback=renderInterview(s,{voiceState:{phase:'unsupported',recognitionSupported:false}});
   assert.match(fallback,/id="text-assist" data-text-assist open/);assert.match(fallback,/当前浏览器不支持语音转写/);
   assert.match(renderInterview(s,{imagePath:'https://bad.example/a.png'}),/iv-single-image/);
+  assert.match(renderInterview(s,{imagePath:'https://bad.example/a.png'}),/src="\/assets\/examiner.webp"/);
   assert.doesNotMatch(renderInterview(s,{imagePath:'https://bad.example/a.png'}),/bad\.example/);
+});
+
+test('考官身份信息在照片下方，当前问题仅在对话区展示而不遮挡人物',()=>{
+  const html=renderInterview(session()),scene=html.match(/<section class="iv-scene[\s\S]*?<\/section>/)?.[0];
+  assert.ok(scene);assert.match(scene,/<img class="iv-portrait"[^>]+width="421" height="237"/);
+  assert.match(scene,/<\/div>\s*<div class="iv-scene-footer"><div class="iv-examiner-identity">/);
+  assert.match(scene,/项目背景、个人贡献、设计决策与验证结果。/);
+  assert.doesNotMatch(scene,/说明作品的研究依据|PORTFOLIO REVIEW|iv-subtitles|iv-scene-shade/);
+  assert.match(html,/class="iv-current-question"[^>]*>说明作品的研究依据。/);
 });
 
 test('过渡态阻止重复提交，收音连接可取消；部分结果不在实时面板重复显示',()=>{
