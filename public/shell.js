@@ -45,3 +45,12 @@ toggle.addEventListener('click', () => {preferredCollapsed=!document.documentEle
 window.addEventListener('storage', event => {
   if (event.key === stateKey) {preferredCollapsed=event.newValue==='collapsed';setCollapsed(preferredCollapsed||compactViewport.matches);}
 });
+
+// A separate disclosure keeps the preparation landing page one click away.
+const prep=document.getElementById('prep-group'),prepToggle=prep.querySelector('.prep-toggle'),prepLinks=document.getElementById('prep-links');
+let prepOpen=false;try{prepOpen=localStorage.getItem('onstage.preparation.open')==='true';}catch{}
+function syncPreparation(open){prepOpen=open;prepLinks.hidden=!open;prepToggle.setAttribute('aria-expanded',String(open));prepToggle.setAttribute('aria-label',(open?'收起':'展开')+'面试准备子菜单');}
+function syncPreparationRoute(){const page=location.hash.slice(1)||'home',child=['setup','exam-library','devices','sources'].includes(page);prep.classList.toggle('is-current',child||page==='home');if(child)syncPreparation(true);for(const a of sidebar.querySelectorAll('nav a')){if(a.dataset.page===page)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');}}
+syncPreparation(prepOpen);syncPreparationRoute();
+prepToggle.addEventListener('click',()=>{if(document.documentElement.classList.contains('sidebar-collapsed')){preferredCollapsed=false;setCollapsed(false,true);}syncPreparation(!prepOpen);try{localStorage.setItem('onstage.preparation.open',String(prepOpen));}catch{}});
+window.addEventListener('hashchange',syncPreparationRoute);

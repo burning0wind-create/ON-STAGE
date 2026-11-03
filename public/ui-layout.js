@@ -8,9 +8,11 @@ function fold(root,node,title){
 export function organizePage(root,page){
   if(page==='setup')fold(root,root.querySelector('.rubric-section'),'查看本场练习评价标准');
   if(page!=='reports')return;
-  const summary=root.querySelector('.assessment-summary'),practice=root.querySelector('.next-practice'),answers=root.querySelector('.report-questions');
+  const summary=(root.querySelector('.scoring-progress')??root.querySelector('.assessment-summary')),practice=root.querySelector('.next-practice'),answers=root.querySelector('.report-questions');
   if(summary&&practice)summary.after(practice);
   if(practice&&answers)practice.after(answers);
+  const again=root.querySelector('[data-action="new-attempt"]');
+  if(again){const actions=again.closest('.form-actions');actions.classList.add('result-next-action');const intro=document.createElement('div');intro.innerHTML='<strong>让下一次，更进一步。</strong><p>沿用本次目标与材料，开始新的练习。</p>';actions.prepend(intro);}
   fold(root,root.querySelector('.coverage-panel'),'答题与考察覆盖');
   fold(root,root.querySelector('.evidence-ledger'),'评分依据与原文证据');
   const professional=root.querySelector('.score-dimensions')?.closest('section.card');

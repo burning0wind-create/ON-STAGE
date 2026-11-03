@@ -1,0 +1,26 @@
+const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const value=x=>typeof x==='number'&&Number.isFinite(x);
+const clamp=(n,max=100)=>Math.max(0,Math.min(max,n));
+const stageNames={english:'英语问答',portfolio:'作品集答辩',design:'专业问答',ethics:'综合素质与伦理'};
+export function scoreRing(score,{label='本场表现参考分',detail='满分 100',small=false}={}){
+ const has=value(score),n=has?clamp(score):0;
+ return `<div class="viz-ring ${small?'viz-ring-small':''}"><svg viewBox="0 0 160 160" role="img" aria-label="${esc(label)}：${has?esc(score)+' / 100':'暂无评分'}"><circle class="viz-ring-track" cx="80" cy="80" r="66"/><circle class="viz-ring-value" cx="80" cy="80" r="66" pathLength="100" stroke-dasharray="${n} 100" transform="rotate(-90 80 80)"/></svg><div class="viz-ring-label"><strong>${has?esc(score):'—'}</strong><span>${esc(detail)}</span></div></div>`;
+}
+export function radarChart(dimensions=[]){
+ if(!dimensions.length)return '<div class="viz-empty">还没有可绘制的能力评价</div>';
+ const c={x:180,y:140},r=86,count=dimensions.length;
+ const pos=(i,scale=1)=>{const angle=-Math.PI/2+i*2*Math.PI/count;return [c.x+Math.cos(angle)*r*scale,c.y+Math.sin(angle)*r*scale];};
+ const points=scale=>dimensions.map((_,i)=>pos(i,scale).join(',')).join(' ');
+ const all=dimensions.every(d=>value(d.score));
+ const labels=['问题论证','专业理解','研究证据','设计决策','批判反思','贡献伦理'];
+ return `<div class="radar-visual"><svg viewBox="0 0 360 290" role="img" aria-label="专业能力画像，满分5分。${esc(dimensions.map(d=>d.name+'：'+(value(d.score)?d.score:'未评分')).join('；'))}">${[.2,.4,.6,.8,1].map(s=>`<polygon class="radar-grid" points="${points(s)}"/>`).join('')}${dimensions.map((d,i)=>{const [x,y]=pos(i);return `<line class="radar-axis" x1="180" y1="140" x2="${x}" y2="${y}"/>`;}).join('')}${all?`<polygon class="radar-area" points="${dimensions.map((d,i)=>pos(i,clamp(d.score,5)/5).join(',')).join(' ')}"/>`:''}${dimensions.map((d,i)=>{const [x,y]=pos(i,1.28),p=pos(i,value(d.score)?clamp(d.score,5)/5:1),anchor=Math.abs(x-180)<4?'middle':x>180?'start':'end';return `<text class="radar-label" x="${x}" y="${y}" text-anchor="${anchor}">${esc(count===6?labels[i]:d.name.slice(0,6))}</text>${value(d.score)?`<circle class="radar-point" cx="${p[0]}" cy="${p[1]}" r="4"><title>${esc(d.name)}：${d.score}/5</title></circle>`:`<g><title>${esc(d.name)}：未评分</title></g>`}`;}).join('')}</svg></div><div class="viz-legend"><span><i class="legend-dot"></i>实际回答评分</span><span>1–5分行为锚点${all?'':' · 空缺项不按0分绘制'}</span></div>`;
+}
+export function reportDashboard(s){
+ const r=s.report??{},perf=r.performance,dims=r.dimensions??[],total=r.trainingTotal;
+ const answers=(s.turns??[]).filter(t=>t.role==='candidate'&&!t.skipped);
+ const done=perf?.completed??answers.filter(t=>t.evaluation?.mode==='llm').length,pending=perf?.pending??Math.max(0,answers.length-done);
+ const covered=dims.filter(d=>value(d.score)).length,stages=perf?.stages??[];
+ return `<section class="result-overview" aria-label="成绩总览"><div class="result-main-score">${scoreRing(total)}<div class="result-score-copy"><p class="eyebrow">本场作答表现参考 / 100</p><h2>${value(total)?'看见这一次的表现':'等待你的回答被评价'}</h2><p>${pending?`已有 ${done} 题完成专业评分，另有 ${pending} 题待补评。当前分数仅概括已评分范围。`:value(total)?'评分来自本场实际回答。接下来，找到最值得练习的一步。':'完成作答后，系统会依据本场标准生成反馈。'}</p><span class="viz-status ${pending?'is-pending':''}">${pending?'部分评分 · 可继续补评':value(total)?'本场作答评分已完成':'尚无评分'}</span></div></div><div class="result-kpis"><div><span>已完成评分</span><strong>${done}<small> / ${answers.length} 题</small></strong></div><div><span>能力评价覆盖</span><strong>${covered}<small> / ${dims.length} 项</small></strong></div><div><span>已评分环节权重</span><strong>${perf?perf.scoredStageWeight:'—'}<small>${perf?' / '+perf.totalStageWeight:''}</small></strong></div></div><p class="result-scope">训练参考 · ${esc(perf?.scope??r.note??'只依据已观察到的回答，不代表官方成绩')}</p></section>
+ <div class="result-charts"><section class="viz-card"><div class="viz-heading"><div><p class="eyebrow">ABILITY PROFILE</p><h2>专业能力画像</h2></div><span>满分 5</span></div>${radarChart(dims)}<details class="viz-data"><summary>查看画像数据</summary><ul>${dims.map(d=>`<li><span>${esc(d.name)}</span><strong>${value(d.score)?d.score+' / 5':d.scoringPending?'待补评':'未评分'}</strong></li>`).join('')}</ul></details></section>
+ <section class="viz-card"><div class="viz-heading"><div><p class="eyebrow">BY INTERVIEW STAGE</p><h2>各环节表现</h2></div><span>满分 100</span></div><div class="stage-score-bars">${stages.length?stages.map((st,i)=>`<div class="stage-score-row"><div class="stage-score-name"><span class="stage-sequence">${String(i+1).padStart(2,'0')}</span><strong>${esc(stageNames[st.id]??st.name)}</strong><span>${value(st.score)?st.score:'待评分'}</span></div><div class="stage-score-track" ${value(st.score)?`role="meter" aria-label="${esc(st.name)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${clamp(st.score)}"`:''}><svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true"><rect class="stage-score-fill fill-${i%4}" width="${value(st.score)?clamp(st.score):0}" height="8" rx="4"/></svg></div><small>本场预设环节权重 ${st.weight}${value(st.score)?'':' · 未取得评分，不记零分'}</small></div>`).join(''):'<div class="viz-empty">这份历史报告没有独立的环节分，保留原始评价。</div>'}</div><div class="stage-score-footnote">环节分与能力画像观察角度不同，均可在下方原文证据中追溯。</div></section></div>`;
+}
