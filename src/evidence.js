@@ -18,7 +18,7 @@ function checkedCounterevidence(raw,answer,dimensionId) {
     return {dimensionId,quote,reason:requireText(c.reason,'反证说明'),correction:requireText(c.correction,'修正说明')};
   });
 }
-function validateGroup(raw,definitions,answer,question,group,rootCounterevidence) {
+export function validateGroup(raw,definitions,answer,question,group,rootCounterevidence=[]) {
   if(!Array.isArray(raw))throw new Error(`${group==='professional'?'专业':'表达'}评分格式无效`);
   const allowedIds=new Set(definitions.map(d=>d.id)), seen=new Set();
   for(const item of raw){
@@ -87,7 +87,8 @@ export function aggregateEvidence(session,rubric) {
         const status=response.skipped?'skipped':SCORED_STATUSES.has(item.status)&&!scorable?'insufficient_evidence':item.status;
         const validCounterevidence=(Array.isArray(item.counterevidence)?item.counterevidence:[]).filter(c=>c&&text(c.quote)&&String(response.content??'').includes(text(c.quote))&&text(c.reason)&&text(c.correction)).map(c=>({dimensionId:definition.id,quote:text(c.quote),reason:text(c.reason),correction:text(c.correction)}));
         const recordId=`evidence-${response.id??responseIndex}-${group}-${definition.id}`;
-        const record={id:recordId,responseId:response.id??null,questionId:response.questionId??item.questionId??null,dimensionId:definition.id,name:definition.name,group,stageId,question:text((session.turns??[]).find(t=>t.id===response.questionId)?.content??item.question,3000),status,statusLabel:STATUS_LABELS[status],score:scorable?score:null,quote:validQuote?quote:'',reason:text(item.reason),quality:text(item.reason),finding:text(item.finding,100),limitation:text(item.limitation),nextProbe:text(item.nextProbe||definition.nextProbe),improvement:text(item.improvement),counterevidence:validCounterevidence,duplicateOf:null,independent:false,assisted:response.assisted===true||evaluation.assisted===true||session.assisted===true};
+        const scoringPending=!response.skipped&&score===null&&(evaluation.mode==='unavailable'||item.gradingStatus==='pending'||(response.scoring?.diagnostics?.at(-1)?.invalidItems??[]).some(x=>x.group===group&&x.id===definition.id));
+        const record={scoringPending,id:recordId,responseId:response.id??null,questionId:response.questionId??item.questionId??null,dimensionId:definition.id,name:definition.name,group,stageId,question:text((session.turns??[]).find(t=>t.id===response.questionId)?.content??item.question,3000),status,statusLabel:STATUS_LABELS[status],score:scorable?score:null,quote:validQuote?quote:'',reason:text(item.reason),quality:text(item.reason),finding:text(item.finding,100),limitation:text(item.limitation),nextProbe:text(item.nextProbe||definition.nextProbe),improvement:text(item.improvement),counterevidence:validCounterevidence,duplicateOf:null,independent:false,assisted:response.assisted===true||evaluation.assisted===true||session.assisted===true};
         const key=`${group}:${definition.id}`;
         if(!buckets.has(key))buckets.set(key,[]);
         const observations=buckets.get(key);
@@ -111,7 +112,7 @@ export function aggregateEvidence(session,rubric) {
       else if(independent.some(r=>r.status==='partly_observed'))status='partly_observed';
       else if(records.some(r=>r.status==='insufficient_evidence'))status='insufficient_evidence';
       else if(records.length&&records.every(r=>r.status==='skipped'))status='skipped';
-      return {...d,status,statusLabel:STATUS_LABELS[status],score:mean(independent.map(r=>r.score)),observedAnswers:independent.length,independentEvidenceCount:independent.length,fullyObservedAnswers:observed.length,duplicateEvidenceCount:records.filter(r=>r.duplicateOf).length,evidence:records};
+      return {...d,scoringPending:records.some(r=>r.scoringPending),status,statusLabel:STATUS_LABELS[status],score:mean(independent.map(r=>r.score)),observedAnswers:independent.length,independentEvidenceCount:independent.length,fullyObservedAnswers:observed.length,duplicateEvidenceCount:records.filter(r=>r.duplicateOf).length,evidence:records};
     });
   }
   const dimensions=aggregateGroup('professional',groups.professional),languageDimensions=aggregateGroup('language',groups.language);

@@ -1,3 +1,5 @@
+import {scoringPolicy,questionTargets,scoreProgress,diagnose} from './scoring.js';
+import {evaluateCore} from './core-evaluation.js';
 import { id,hash,fail,required,cacheKey,sessionIdentity,validateStages,validateOfficialRubric,makePlan,sourceRecord } from './domain.js';
 import { preparePlan,evaluateAnswer,evaluateOfficial,buildReport,unassessedEvaluation } from './ai.js';
 import {summarizeAuxiliaryCaptures} from '../public/multimodal/auxiliary-scores.js';
@@ -6,7 +8,7 @@ import { buildTrainingRubric } from '../public/rubrics.js';
 import { getExamRecord } from './exam-library.js';
 
 export class OnStage {
-  constructor(store,llm=null) {this.store=store;this.llm=llm;this.busy=new Set();}
+  constructor(store,llm=null) {this.store=store;this.llm=llm;this.busy=new Set();this.jobs=new Map();}
   profile(input) {
     let target;try {target=resolveCatalogTarget(input);}catch(e){fail(e.message);}
     input={...input,...target};
@@ -40,6 +42,8 @@ export class OnStage {
       const materials=profile.materialIds.map(id=>this.store.get('materials',id));
       const fingerprint=hash({profile,materials:materials.map(m=>m.hash)});
       const session={id:id(),profile,rubric:structuredClone(profile.trainingRubric),materials,sources:this.store.list('sources').filter(s=>s.school===profile.school&&s.major===profile.major&&(!s.college||s.college===profile.college)),createdAt:new Date().toISOString(),lastResumedAt:new Date().toISOString(),activeMs:0,status:'active',mode:this.llm?'llm':'demo',cacheKey:key,fingerprint,identityScope:hash([profile.nickname,profile.school,profile.college,profile.programId||profile.major,profile.directionId,profile.year,profile.admissionType]),rubricHash:hash([profile.rulesText,profile.rubricText,profile.officialRubric,profile.trainingRubric,profile.stages]),stageIndex:0,turns:[],sensors:[],warnings:[]};
+      session.scoringPolicy=scoringPolicy(profile.stages);
+      session.rubricHash=hash([session.rubricHash,session.scoringPolicy]);
       const cached=this.store.get('plans',key);
       let plan=cached?.fingerprint===fingerprint?cached.plan:null;
       if(!plan) {
@@ -57,7 +61,7 @@ export class OnStage {
   addOpening(s) {
     const stage=s.profile.stages[s.stageIndex];
     const opening=s.plan.layers.strategy.find(x=>(x.stageId??x.id)===stage.id)?.opening??stage.question;
-    s.turns.push({id:id(),role:'interviewer',stageId:stage.id,content:opening,createdAt:new Date().toISOString()});
+    s.turns.push({id:id(),role:'interviewer',stageId:stage.id,content:opening,scoringTargets:questionTargets(s.rubric,stage.id),createdAt:new Date().toISOString()});
   }
   async exclusive(sid, fn) {
     if(this.busy.has(sid)) fail('本场面试正在处理上一项操作',409);
@@ -72,14 +76,21 @@ export class OnStage {
       const answer=required(input.answer,'回答',20000);
       if(input.questionId!==question.id) fail('题目已更新，请刷新后继续',409);
       const responseId=id(),evidenceQuestion={...question,responseId};
-      let evaluation;
-      try {evaluation=await evaluateAnswer(this.llm,s,evidenceQuestion,answer);} catch {evaluation=s.rubric?unassessedEvaluation(s,evidenceQuestion,{mode:'unavailable',feedback:'模型评价暂不可用；回答已保存，本题不计分。'}):await evaluateAnswer(null,s,question,answer);evaluation.mode='unavailable';evaluation.feedback='模型评价暂不可用；回答已保存，本题不计分。';}
-      s.turns.push({id:responseId,role:'candidate',stageId:question.stageId,questionId:question.id,content:answer,createdAt:new Date().toISOString(),durationMs:Math.min(Math.max(Number(input.durationMs)||0,0),3600000),inputMode:input.inputMode==='speech'?'speech':'text',evaluation});
+      if(s.scoringPolicy){
+        const turn={id:responseId,role:'candidate',stageId:question.stageId,questionId:question.id,content:answer,createdAt:new Date().toISOString(),durationMs:Math.min(Math.max(Number(input.durationMs)||0,0),3600000),inputMode:input.inputMode==='speech'?'speech':'text',evaluation:unassessedEvaluation(s,evidenceQuestion),scoring:{status:'pending',attempts:[],diagnostics:[]}};
+        s.turns.push(turn);this.save(s);
+        await this.scoreTurn(s,turn);
+      }else{
+        let evaluation;
+        try{evaluation=await evaluateAnswer(this.llm,s,evidenceQuestion,answer);}catch(error){evaluation=unassessedEvaluation(s,evidenceQuestion,{mode:'unavailable',feedback:'已作答，评分失败，待重试。'});evaluation.scoring={status:'pending',diagnostics:[diagnose(error)]};}
+        s.turns.push({id:responseId,role:'candidate',stageId:question.stageId,questionId:question.id,content:answer,createdAt:new Date().toISOString(),evaluation});
+      }
       return this.save(s);
     });
   }
   async advance(sid,action) {
     return this.exclusive(sid,async s=>{
+      if(action==='retry-scores')return this.retryScores(s);
       if(s.status==='complete') fail('本场已结束');
       if(action==='pause') {if(s.status==='active')s.activeMs+=Date.now()-Date.parse(s.lastResumedAt);s.status='paused';return this.save(s);}
       if(action==='resume') {if(s.status==='paused')s.lastResumedAt=new Date().toISOString();s.status='active';return this.save(s);}
@@ -94,19 +105,89 @@ export class OnStage {
         if(last?.role!=='candidate') fail('请先回答当前问题');
         if(s.turns.length>=160)fail('本场已达到问答上限，请结束并复盘');
         const followup=last.evaluation.followup||'请进一步说明你的判断依据。';
-        s.turns.push({id:id(),role:'interviewer',stageId:last.stageId,content:followup,createdAt:new Date().toISOString()});
+        s.turns.push({id:id(),role:'interviewer',stageId:last.stageId,content:followup,scoringTargets:s.turns.find(q=>q.id===last.questionId)?.scoringTargets??questionTargets(s.rubric,last.stageId),createdAt:new Date().toISOString()});
       } else if(action==='next') {
         if(s.turns.at(-1)?.role!=='candidate') fail('请先回答当前环节问题');
         if(s.stageIndex+1>=s.profile.stages.length) fail('已经是最后一个环节，请结束并复盘');
         s.stageIndex++;this.addOpening(s);
       } else if(action==='finish') {
-        try{s.official=await evaluateOfficial(this.llm,s);}catch{s.official={status:'unavailable',total:null,items:[],note:'模型院校评分暂不可用，未生成成绩。'};}
+        if(s.scoringPolicy&&this.llm)await this.retryScores(s,false);
+        await this.scoreOfficial(s);
         s.activeMs+=Date.now()-Date.parse(s.lastResumedAt);s.status='complete';s.completedAt=new Date().toISOString();
         s.report=buildReport(s,this.store.list('sessions'));
         s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);
       } else fail('不支持的面试操作');
       return this.save(s);
     });
+  }
+  async submitAnswer(sid,input){
+    const saved=await this.exclusive(sid,async s=>{
+      const q=s.turns.at(-1);if(s.status!=='active')fail('请先恢复面试');if(q?.role!=='interviewer')fail('本题已回答');if(q.id!==input.questionId)fail('题目已更新',409);if(s.turns.length>=160)fail('已达问答上限');
+      const content=required(input.answer,'回答',20000),responseId=id();
+      s.turns.push({id:responseId,role:'candidate',questionId:q.id,stageId:q.stageId,content,createdAt:new Date().toISOString(),inputMode:input.inputMode==='speech'?'speech':'text',durationMs:Math.min(Math.max(Number(input.durationMs)||0,0),3600000),evaluation:unassessedEvaluation(s,{...q,responseId}),scoring:{status:'pending',diagnostics:[]}});
+      return this.save(s);
+    });this.startScoring(sid);return this.get(sid);
+  }
+  async finishQueued(sid){
+    const saved=await this.exclusive(sid,async s=>{if(s.status!=='active')fail('请先恢复面试');s.activeMs+=Date.now()-Date.parse(s.lastResumedAt);s.status='complete';s.completedAt=new Date().toISOString();s.report=buildReport(s,this.store.list('sessions'));s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);return this.save(s);});
+    this.startScoring(sid);return saved;
+  }
+  async retryQueued(sid){
+    if(this.jobs.has(sid))fail('本场正在后台评分，请等待当前任务完成',409);
+    const saved=await this.exclusive(sid,async s=>{if(!s.rubric)fail('该记录缺少冻结量表');if(!this.llm)fail('请先连接评分模型',503);
+      this.store.put('score-revisions',id(),{sessionId:s.id,savedAt:new Date().toISOString(),snapshot:structuredClone(s)});
+      s.scoringPolicy??=scoringPolicy(s.profile.stages);s.rubricHash=hash([s.profile.rulesText,s.profile.rubricText,s.profile.officialRubric,s.rubric,s.profile.stages,s.scoringPolicy]);
+      for(const t of s.turns.filter(t=>t.role==='candidate'&&!t.skipped)){const q=s.turns.find(q=>q.id===t.questionId);if(scoreProgress(t,s.rubric,q).status!=='complete')t.scoring={...t.scoring,status:'pending'};}
+      if(s.status==='complete')s.report=buildReport(s,this.store.list('sessions'));return this.save(s);
+    });this.startScoring(sid);return saved;
+  }
+  startScoring(sid){
+    if(this.jobs.has(sid)||!this.llm)return;
+    const queued=this.get(sid);queued.mode='llm';queued.scoringJob={status:'running',startedAt:new Date().toISOString()};this.save(queued);
+    const job=new Promise(resolve=>setTimeout(resolve,0)).then(async()=>{
+      const attempted=new Set();
+      while(true){
+        let s=this.get(sid);const t=s.turns.find(t=>t.role==='candidate'&&!t.skipped&&!attempted.has(t.id)&&scoreProgress(t,s.rubric,s.turns.find(q=>q.id===t.questionId)).status!=='complete');
+        if(!t)break;attempted.add(t.id);const q=s.turns.find(q=>q.id===t.questionId);if(!q)continue;
+        q.scoringTargets??=questionTargets(s.rubric,q.stageId);t.scoring={...t.scoring,status:'running',startedAt:new Date().toISOString()};this.save(s);
+        let result;try{result=await evaluateCore(this.llm,s,{...q,responseId:t.id},t.content,t.evaluation);}catch(error){result={...t.evaluation,mode:'unavailable',scoring:{status:'pending',diagnostics:[diagnose(error)]}};}
+        s=this.get(sid);const actual=s.turns.find(x=>x.id===t.id);actual.evaluation=result;actual.scoring={...result.scoring,history:[...(actual.scoring?.history??[]),...(actual.scoring?.diagnostics??[])].slice(-50),completedAt:new Date().toISOString()};
+        if(s.status==='complete'){s.report=buildReport(s,this.store.list('sessions'));s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);s.report.revisedAt=new Date().toISOString();}this.save(s);
+      }
+      let snapshot=this.get(sid);
+      if(snapshot.status==='complete'&&snapshot.profile.officialRubric&&snapshot.official?.status!=='assessed'){
+        await this.scoreOfficial(snapshot);const latest=this.get(sid);latest.official=snapshot.official;latest.report=buildReport(latest,this.store.list('sessions'));latest.report.multimodalEvaluation=summarizeAuxiliaryCaptures(latest.multimodal);latest.report.revisedAt=new Date().toISOString();this.save(latest);
+      }
+    }).catch(error=>{const s=this.get(sid);s.scoringError=diagnose(error);this.save(s);}).finally(()=>{this.jobs.delete(sid);const s=this.get(sid);s.scoringJob={...s.scoringJob,status:'idle',completedAt:new Date().toISOString()};this.save(s);});
+    this.jobs.set(sid,job);
+  }
+  recoverScoring(){for(const s of this.store.list('sessions'))if(s.scoringPolicy&&(s.scoringJob?.status==='running'||s.turns.some(t=>t.scoring?.status==='running'||t.scoring?.status==='pending'))){for(const t of s.turns)if(t.scoring?.status==='running')t.scoring.status='pending';this.save(s);this.startScoring(s.id);}}
+  async scoreTurn(s,turn){
+    const question=s.turns.find(q=>q.id===turn.questionId&&q.role==='interviewer');
+    if(!question){turn.scoring={status:'pending',diagnostics:[diagnose(Error('Question missing'))]};return this.save(s);}
+    question.scoringTargets??=questionTargets(s.rubric,question.stageId);
+    turn.scoring={...turn.scoring,status:'running',startedAt:new Date().toISOString()};this.save(s);
+    try{const result=await evaluateCore(this.llm,s,{...question,responseId:turn.id},turn.content,turn.evaluation);turn.evaluation=result;turn.scoring={...result.scoring,completedAt:new Date().toISOString()};}
+    catch(error){turn.scoring={status:'pending',diagnostics:[diagnose(error)],completedAt:new Date().toISOString()};}
+    return this.save(s);
+  }
+  async scoreOfficial(s){
+    const diagnostics=[];
+    for(let attempt=0;attempt<(this.llm?2:1);attempt++){
+      try{s.official=await evaluateOfficial(this.llm,s);if(s.official.status==='partial')continue;return;}catch(error){diagnostics.push(diagnose(error));}
+    }
+    if(diagnostics.length)s.official={status:'unavailable',total:null,items:s.official?.items??[],diagnostics,note:'院校评分待补评；回答和已通过校验的分项仍保留。'};
+  }
+  async retryScores(s,backup=true){
+    if(!s.rubric)fail('该旧记录没有冻结量表，不能按新标准自动改评');
+    if(backup)this.store.put('score-revisions',id(),{sessionId:s.id,savedAt:new Date().toISOString(),snapshot:structuredClone(s)});
+    s.scoringPolicy??=scoringPolicy(s.profile.stages);
+    for(const turn of s.turns.filter(t=>t.role==='candidate'&&!t.skipped)){
+      const q=s.turns.find(q=>q.id===turn.questionId);
+      if(scoreProgress(turn,s.rubric,q).status!=='complete')await this.scoreTurn(s,turn);
+    }
+    if(backup){await this.scoreOfficial(s);if(s.status==='complete'){s.report=buildReport(s,this.store.list('sessions'));s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);s.report.revisedAt=new Date().toISOString();}}
+    return this.save(s);
   }
   sensors(sid,events) {
     if(this.busy.has(sid)) fail('面试正在处理，请稍后提交状态事件',409);

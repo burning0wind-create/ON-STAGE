@@ -1,3 +1,4 @@
+import {SCORING_VERSION} from './scoring.js';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -25,6 +26,7 @@ async function input(req) {try{return JSON.parse((await body(req,1024*1024)).toS
 export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=modelFromEnv(),env=process.env,settingsFile=fileURLToPath(new URL('../.env.local',import.meta.url)),testConnection=testModelSettings}={}) {
   const app=new OnStage(store,llm);
   let runtimeEnv={...env},settingsBusy=false;
+  app.recoverScoring();
   const server=http.createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','same-origin');
@@ -45,17 +47,17 @@ export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=
         if(req.method==='GET')return json(res,key?getCapture(store,sid,key):(app.get(sid).multimodal||[]));
         if(req.method==='POST'&&!key){if(app.busy.has(sid))fail('本场正在保存回答，请稍后重试采集保存',409);let data;try{data=JSON.parse((await body(req,64*1024*1024)).toString('utf8'));}catch(e){if(e.status)throw e;fail('多模态JSON格式无效');}if(app.busy.has(sid))fail('本场正在保存回答，请稍后重试采集保存',409);return json(res,attachCapture(store,sid,data),201);}
       }
-      if(route==='/api/config'&&req.method==='GET') return json(res,{name:'ON STAGE',mode:llm?'llm':'demo',searchConfigured:!!env.SEARCH_API_KEY,templates:TEMPLATE_SEEDS,stages:STAGES,dimensions:DIMENSIONS});
+      if(route==='/api/config'&&req.method==='GET') return json(res,{name:'ON STAGE',scoringVersion:SCORING_VERSION,mode:llm?'llm':'demo',searchConfigured:!!env.SEARCH_API_KEY,templates:TEMPLATE_SEEDS,stages:STAGES,dimensions:DIMENSIONS});
       if(route==='/api/model-settings'&&req.method==='GET')return json(res,modelSettings(runtimeEnv));
       if(['/api/model-settings','/api/model-settings/test'].includes(route)&&req.method==='POST'){
         if(!req.headers['content-type']?.startsWith('application/json'))fail('请使用 JSON 请求',415);
-        if(settingsBusy||app.busy.size)fail('正在处理请求，请稍后再修改模型设置',409);
+        if(settingsBusy||app.busy.size||app.jobs.size)fail('正在处理请求，请稍后再修改模型设置',409);
         settingsBusy=true;
         try{
           const settings=validateModelSettings(await input(req),runtimeEnv);
           await testConnection(settings);
           if(route.endsWith('/test'))return json(res,{ok:true,message:'连接成功'});
-          if(app.busy.size)fail('正在保存面试回答，请稍后再启用模型',409);
+          if(app.busy.size||app.jobs.size)fail('正在保存面试回答，请稍后再启用模型',409);
           saveModelSettings(settingsFile,settings);
           runtimeEnv={...runtimeEnv,...settings};llm=modelFromEnv(runtimeEnv);app.llm=llm;
           return json(res,{...modelSettings(runtimeEnv),mode:'llm'});
@@ -87,8 +89,8 @@ export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=
       if(match) {
         const [,sid,action]=match;
         if(!action&&req.method==='GET') return json(res,app.get(sid));
-        if(action==='answer'&&req.method==='POST') return json(res,await app.answer(sid,await input(req)));
-        if(action==='action'&&req.method==='POST') return json(res,await app.advance(sid,(await input(req)).action));
+        if(action==='answer'&&req.method==='POST'){const data=await input(req);return json(res,await (app.get(sid).scoringPolicy?app.submitAnswer(sid,data):app.answer(sid,data)),202);}
+        if(action==='action'&&req.method==='POST'){const {action:control}=await input(req);return json(res,await (control==='retry-scores'?app.retryQueued(sid):control==='finish'&&app.get(sid).scoringPolicy?app.finishQueued(sid):app.advance(sid,control)));}
         if(action==='sensors'&&req.method==='POST') return json(res,app.sensors(sid,(await input(req)).events));
         if(action==='improvements'&&req.method==='POST') {const data=await input(req);return json(res,app.checkImprovement(sid,data.index,data.checked));}
         if(action==='export'&&req.method==='GET') {

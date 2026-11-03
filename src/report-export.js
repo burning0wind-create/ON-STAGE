@@ -32,9 +32,11 @@ function dimensionSummary(dimensions,{language=false,legacy=false}={}) {
 export function reportMarkdown(session) {
   const s=session??{},p=s.profile??{},r=s.report??{},rubric=r.rubric??s.rubric;
   const legacy=!rubric;
-  const out=['# ON STAGE · 升学面试复盘',`${inline(p.nickname)} · ${inline(targetLabel(p))}`,`第 ${inline(p.attempt)} 次 · ${inline(p.interviewTime)}；招生年份：${inline(p.year)}；类型：${inline(p.admissionType)}`,`场次 ID：${inline(s.id)}；生成时间：${inline(r.generatedAt||'未记录')}`,`模式：${s.contentRegrade?.method==='assistant_rubric_review'?'本助手按原量表补评':s.mode==='demo'?'流程演示':s.mode==='llm'?'模型评价':'未完成模型评价'}；评价状态：${legacy?'历史量表记录':state(r.assessmentStatus)}`,`专业训练总分：${number(r.trainingTotal,' / 100')}；院校标准练习总分：${number(r.official?.total,' / 100')}`,inline(r.note||'未观察到不等于低分。练习反馈不代表官方考试成绩。')];
+  const out=['# ON STAGE · 升学面试复盘',`${inline(p.nickname)} · ${inline(targetLabel(p))}`,`第 ${inline(p.attempt)} 次 · ${inline(p.interviewTime)}；招生年份：${inline(p.year)}；类型：${inline(p.admissionType)}`,`场次 ID：${inline(s.id)}；生成时间：${inline(r.generatedAt||'未记录')}`,`模式：${s.contentRegrade?.method==='assistant_rubric_review'?'本助手按原量表补评':s.mode==='demo'?'流程演示':s.mode==='llm'?'模型评价':'未完成模型评价'}；评价状态：${legacy?'历史量表记录':state(r.assessmentStatus)}`,`${r.performance?'本场作答表现参考分':'专业训练总分'}：${number(r.trainingTotal,' / 100')}；院校标准练习总分：${number(r.official?.total,' / 100')}`,inline(r.note||'未观察到不等于低分。练习反馈不代表官方考试成绩。')];
   if(legacy)out.push('历史报告没有新版证据状态和量表快照；保留原始结果，不补造新版覆盖状态。');
   const c=r.coverage??{};
+  if(r.performance){const perf=r.performance;out.push('## 本场作答表现与评分进度',perf.scope,`评分版本：${inline(perf.version)}；已作答${perf.answered}题，已完成评分${perf.completed}题，待补评${perf.pending}题；已评分环节权重${perf.scoredStageWeight}/${perf.totalStageWeight}。`, '| 回答ID | 环节 | 状态 | 本题参考分/100 |\n|---|---|---|---|\n'+perf.questions.map(q=>`| ${inline(q.responseId)} | ${inline(q.stageId)} | ${inline(q.status)} | ${number(q.score)} |`).join('\n'));
+  for(const t of list(s.turns).filter(t=>t.scoring))for(const d of list(t.scoring.diagnostics))out.push(`补评诊断：回答 ${inline(t.id)}；${inline(d.code)}；${inline(d.message)}；${inline(d.at)}`);}
   out.push('## 覆盖范围',`专业已观察 ${number(c.assessed)} / ${number(c.total)}；部分观察 ${number(c.partial)}；未充分考察 ${number(c.unassessed)}；已作答 ${number(c.answered)}；已跳过 ${number(c.skipped)}。`,`已作答环节：${list(c.stageIds).map(inline).join('、')||'无'}`);
   if(list(c.criticalMissing).length)out.push(`关键维度待补证：${c.criticalMissing.map(d=>inline(typeof d==='string'?d:d.name??d.id)).join('、')}。覆盖不完整时不生成完整能力结论。`);
   if(rubric){

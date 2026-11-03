@@ -1,3 +1,4 @@
+import {performanceSummary} from './scoring.js';
 import { createLlm, parseJsonFromText } from './llm/provider.js';
 import { DIMENSIONS } from './domain.js';
 import { aggregateEvidence,validateEvidenceEvaluation } from './evidence.js';
@@ -62,7 +63,7 @@ export async function evaluateOfficial(llm, session) {
   if(!llm) return {status:'unassessed',items:[],total:null,note:'院校标准已保存，连接模型后才评分。'};
   const answers=session.turns.filter(t=>t.role==='candidate'&&!t.skipped);
   if(!answers.length) return {status:'insufficient_evidence',items:[],total:null,note:'没有回答证据。'};
-  const raw=await llm([{role:'system',content:CONTRACT+' 仅按输入院校标准评估本场，不用训练标准替代。每项 score=0–100 或 null，quote 必须逐字来自非跳过的候选人回答。显式状态 observed/partly_observed/not_assessed/skipped/insufficient_evidence。非空分数只能observed/partly_observed，证据不足给null。返回 {items:[{id,status,score,quote,responseId,questionId,reason,limitation,nextProbe}]}。responseId必须指向候选人回答ID，questionId指向其题目。材料自述不能替代实际回答。权重由程序计算，不要自行改动。'},{role:'user',content:context(session)+'\n'+JSON.stringify({rubric,turns:session.turns})}],{timeoutMs:45000,maxTokens:5500});
+  const raw=await llm([{role:'system',content:CONTRACT+' 仅按输入院校标准评估本场，不用训练标准替代。每项 score=0–100 或 null，quote 必须逐字来自非跳过的候选人回答。显式状态 observed/partly_observed/not_assessed/skipped/insufficient_evidence。非空分数只能observed/partly_observed，证据不足给null。返回 {items:[{id,status,score,quote,responseId,questionId,reason,limitation,nextProbe}]}。responseId必须指向候选人回答ID，questionId指向其题目。材料自述不能替代实际回答。权重由程序计算，不要自行改动。'},{role:'user',content:JSON.stringify({target:{school:session.profile.school,college:session.profile.college,major:session.profile.major,year:session.profile.year},rubric,turns:session.turns.map(({id,role,stageId,questionId,content})=>({id,role,stageId,questionId,content}))})}],{timeoutMs:60000,maxTokens:6500,thinking:'disabled'});
   const data=parseJsonFromText(raw);
   if(!Array.isArray(data?.items)) throw new Error('院校评分格式无效');
   const items=rubric.map(d=>{
@@ -87,11 +88,12 @@ export async function evaluateOfficial(llm, session) {
 export function buildReport(session, previous=[]) {
   if(session.rubric){
     const report=aggregateEvidence(session,session.rubric);
-    const comparable=previous.filter(p=>p.id!==session.id&&p.status==='complete'&&p.identityScope===session.identityScope&&p.rubricHash===session.rubricHash&&p.mode===session.mode&&p.report?.rubric?.version===session.rubric.version&&p.report?.rubric?.id===session.rubric.id).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+    if(session.scoringPolicy){const performance=performanceSummary(session,session.rubric);report.fullAbilityTotal=report.trainingTotal;report.trainingTotal=performance.total;report.performance=performance;report.scoringVersion=session.scoringPolicy.version;report.assessmentStatus=report.assisted?'assisted_practice':performance.pending?'partial':performance.total!==null?'complete':'unassessed';}
+    const comparable=previous.filter(p=>p.id!==session.id&&p.status==='complete'&&p.identityScope===session.identityScope&&p.rubricHash===session.rubricHash&&p.mode===session.mode&&p.report?.scoringVersion===(session.scoringPolicy?.version)&&p.report?.rubric?.version===session.rubric.version&&p.report?.rubric?.id===session.rubric.id).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
     const last=comparable[0];
     const comparison=last?{sessionId:last.id,attempt:last.profile.attempt,items:report.dimensions.map(d=>{const prior=last.report.dimensions.find(x=>x.id===d.id);return {id:d.id,name:d.name,change:d.score!==null&&prior?.score!=null&&d.status==='observed'&&prior.status==='observed'?Math.round((d.score-prior.score)*10)/10:null};})}:null;
     const sensorSummary=['camera','audio','hand','imu','gaze'].map(channel=>({channel,count:session.sensors.filter(e=>e.channel===channel).length,status:session.sensors.some(e=>e.channel===channel)?'observed':'not_connected'}));
-    return {...report,rubric:session.rubric,generatedAt:new Date().toISOString(),mode:session.mode,official:session.official??{total:null,status:'unassessed',items:[]},comparison,sensorSummary,improvements:report.improvements.slice(0,2),note:'覆盖范围与回答质量分别呈现。语言与专业分开；材料自述未独立核验，设备状态不进入内容分数。'};
+    return {...report,rubric:session.rubric,generatedAt:new Date().toISOString(),mode:session.mode,official:session.official??{total:null,status:'unassessed',items:[]},comparison,sensorSummary,improvements:report.improvements.slice(0,2),note:session.scoringPolicy?'本场作答表现分按已评分环节的固定权重归一化；尚待补评范围单列，不代表完整能力或官方成绩。语言与设备状态不计入专业分。':'覆盖范围与回答质量分别呈现。语言与专业分开；材料自述未独立核验，设备状态不进入内容分数。'};
   }
   const answers=session.turns.filter(t=>t.role==='candidate');
   const dimensions=DIMENSIONS.map(d=>{

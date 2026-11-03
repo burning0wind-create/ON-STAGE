@@ -16,15 +16,16 @@ export function createLlm({ apiKey, baseUrl = 'https://api.deepseek.com', model 
   const isArk = /volces\.com|ark\./i.test(baseUrl);
 
   // ---- Chat Completions 路径（DeepSeek / 豆包 Ark 通用）----
-  async function chatOnce(messages, { temperature, maxTokens, timeoutMs = 120000 }, useJsonMode) {
+  async function chatOnce(messages, { temperature, maxTokens, timeoutMs = 120000, jsonSchema, thinking }, useJsonMode) {
     const body = {
       model,
       messages,
       temperature,
     };
     if (maxTokens) body.max_tokens = maxTokens;
+    if(thinking && new URL(baseUrl).hostname==='api.deepseek.com')body.thinking={type:thinking};
     if (useJsonMode) {
-      body.response_format = { type: 'json_object' };
+      body.response_format = jsonSchema && new URL(baseUrl).hostname==='api.openai.com' ? {type:'json_schema',json_schema:{name:'interview_score',strict:true,schema:jsonSchema}} : { type: 'json_object' };
     }
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
@@ -43,6 +44,8 @@ export function createLlm({ apiKey, baseUrl = 'https://api.deepseek.com', model 
       throw err;
     }
     const data = await res.json();
+    if(data.choices?.[0]?.message?.refusal){const error=new Error('Model refusal');error.code='refusal';throw error;}
+    if(data.choices?.[0]?.finish_reason==='length'){const error=new Error('Incomplete model response');error.code='incomplete';throw error;}
     return data.choices?.[0]?.message?.content ?? '';
   }
 
@@ -102,7 +105,7 @@ export function createLlm({ apiKey, baseUrl = 'https://api.deepseek.com', model 
     return '';
   }
 
-  async function chat(messages, { temperature = 0.2, maxTokens, timeoutMs = 120000, webSearch = false } = {}) {
+  async function chat(messages, { temperature = 0.2, maxTokens, timeoutMs = 120000, webSearch = false, jsonSchema, thinking } = {}) {
     // webSearch 仅豆包 Ark 支持（Responses API + web_search 工具）
     if (webSearch && isArk) {
       try {
@@ -112,10 +115,10 @@ export function createLlm({ apiKey, baseUrl = 'https://api.deepseek.com', model 
       }
     }
     try {
-      return await chatOnce(messages, { temperature, maxTokens, timeoutMs }, true);
+      return await chatOnce(messages, { temperature, maxTokens, timeoutMs, jsonSchema, thinking }, true);
     } catch (err) {
       if (err.status === 400 && /response_format|json_object/i.test(err.body || '')) {
-        return chatOnce(messages, { temperature, maxTokens, timeoutMs }, false);
+        return chatOnce(messages, { temperature, maxTokens, timeoutMs, thinking }, false);
       }
       throw err;
     }
@@ -127,6 +130,7 @@ export function createLlm({ apiKey, baseUrl = 'https://api.deepseek.com', model 
     return chatJson(chat, messages, schema, { temperature, maxTokens, timeoutMs });
   };
 
+  chat.modelInfo={provider:new URL(baseUrl).hostname,model};
   return chat;
 }
 
