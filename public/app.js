@@ -1,4 +1,7 @@
 import {reportDashboard} from './report-visuals.js';
+import {VoiceInterview} from './voice-interview.js';
+import {renderInterview,compactInterviewProgress,updateInterviewVoice} from './interview-view.js';
+import {completeInterviewAnswer} from './interview-completion.js';
 import {renderAnswerReview} from './answer-review.js';
 import {stageReviewId,revealReviewTarget,captureReportReading,restoreReportReading} from './report-navigation.js';
 import {scoringPanel} from './scoring-ui.js';
@@ -19,7 +22,14 @@ let libraryFilter={schoolId:'',collegeId:'',year:'',admissionType:''};
 let selected=saved('onstage.materials',{});
 let draft=saved('onstage.draft',null)||{nickname:'',school:'',major:'设计学',year:'2027',admissionType:'推免面试',interviewTime:new Date(Date.now()+86400000).toLocaleString('sv-SE').slice(0,16).replace(' ','T'),attempt:1,rulesText:'',rubricText:'',stages:['english','portfolio','design','ethics'],official:[]};
 let answerStarted=0;
-let camera=null,mic=null,recognition=null,speechStarted=0,speechConsent=false,toastTimer,busy=false,answerDraft='',recording=false;
+let camera=null,mic=null,speechStarted=0,speechConsent=false,toastTimer,busy=false,answerDraft='';
+let voiceState={phase:'idle',finalText:'',interimText:''},completionIntent=false;
+const voice=new VoiceInterview({
+  onState:state=>{voiceState=state;if(state.phase==='listening'&&!speechStarted)speechStarted=Date.now();updateVoiceUI();},
+  onTranscript:state=>{answerDraft=state.text;const box=$('#answer-form textarea');if(box)box.value=answerDraft;updateVoiceUI();},
+  onSilencePrompt:()=>showVoiceConfirmation(),
+  onError:error=>toast(typeof error==='string'?error:error?.message??'语音暂不可用，可重试或使用文字辅助。')
+});
 async function api(url,options={}) {
   const res=await fetch(url,{...options,headers:options.body instanceof FormData?{}:{'Content-Type':'application/json',...options.headers}});
   const data=await res.json();if(!res.ok)throw new Error(data.error||'操作未完成');return data;
@@ -91,11 +101,10 @@ function devices(){return heading('设备与环境','','<a href="#setup" class="
   </section>
   <div class="device-audio"><label class="checkline"><input id="speech-consent" type="checkbox" ${speechConsent?'checked':''}><span>启用浏览器语音转写（音频可能由浏览器服务商处理）</span></label><button data-action="mic-test" class="small secondary">${mic?'结束设备检查':'检查麦克风'}</button></div>`;}
 function interview(){
-  if(!current||current.status==='complete')return heading('模拟面试','')+`<section class="card empty"><h2>准备好，开始你的下一场</h2><p>先选择院校专业、上传材料与考核依据，再生成本场计划。</p><a class="button" href="#setup">新建面试</a></section>`;
-  const stage=current.profile.stages[current.stageIndex],last=current.turns.at(-1),answered=last.role==='candidate',paused=current.status==='paused';
-  return heading('模拟面试',`${esc(current.profile.school)} / ${esc([current.profile.college,current.profile.major,current.profile.direction].filter(Boolean).join(' / '))} / 第 ${current.profile.attempt} 次`,`${badge(current.mode==='demo'?'流程演示 / 暂不评分':'模型已连接')} <span class="timer" id="elapsed">00:00</span>`)+
-  `<div class="stage-tabs">${current.profile.stages.map((s,i)=>`<span class="stage-tab ${i===current.stageIndex?'current':i<current.stageIndex?'done':''}">${i+1}. ${s.name}</span>`).join('')}</div>${(current.warnings??[]).map(w=>`<div class="help">${esc(w)}</div>`).join('')}<div class="interview-layout"><div><section class="examiner"><img src="/assets/examiner.webp" alt="虚构的设计学院教师型练习考官"><span class="examiner-badge">${stage.name} / 虚拟考官</span><div class="examiner-caption">${paused?'面试已暂停':esc([...current.turns].reverse().find(t=>t.role==='interviewer')?.content)}</div></section><div class="interview-controls"><button class="ghost" data-action="camera">${multimodal.state.camera?'关闭画面':'开启画面'}</button><button class="ghost" data-action="speak">朗读问题</button><button class="secondary" data-control="${paused?'resume':'pause'}">${paused?'恢复面试':'暂停'}</button><button class="danger" data-control="finish">结束面试</button></div><section class="card"><h2>本场依据</h2><p class="subtle">${esc((current.rubric??current.profile.trainingRubric)?.name||'沿用本场已确定的标准')} / 内容评价与语言反馈分开</p><p class="subtle">${stage.name} / 建议 ${stage.minutes} 分钟 / ${current.profile.year} ${esc(current.profile.admissionType)}</p><div class="actions">${current.materials.filter(m=>['resume','portfolio'].includes(m.kind)).map(m=>`<a class="button secondary small" href="/api/materials/${m.id}/file" target="_blank" rel="noopener">查看${kindNames[m.kind]} ↗</a>`).join('')}</div><details><summary>查看七层面试计划</summary><p class="page-note">${Object.keys(current.plan.layers).map((k,i)=>`${i+1}. ${['院校专业与考核','学生与作品画像','环节考官','提问追问策略','材料与证据缺口','评分框架','面试节奏'][i]}`).join(' / ')}</p><p class="subtle">${esc(current.plan.layers.gaps.join('；')||'按已上传材料进行练习。')}</p></details></section></div><section class="card"><h2>问答记录</h2><div class="transcript">${current.turns.map(t=>`<div class="turn ${t.role}"><div class="who">${t.role==='candidate'?'你':'考官'} / ${config.stages.find(s=>s.id===t.stageId)?.name||''}</div><div class="bubble">${esc(t.skipped?'本题已跳过，不作为错误答案计分。':t.content)}</div></div>`).join('')}</div>${current.scoringPolicy?scoringPanel(current,true):''}${answered?`<div class="feedback recording-note"><strong>${last.skipped?'本题已跳过':'回答已记录'}</strong><p>结束后查看反馈。</p></div><div class="actions"><button data-control="followup" ${paused?'disabled':''}>继续追问</button>${current.stageIndex<current.profile.stages.length-1?`<button class="secondary" data-control="next" ${paused?'disabled':''}>下一环节 →</button>`:'<button class="secondary" data-control="finish">结束并查看复盘</button>'}</div>`:`<form id="answer-form"><label class="field">你的回答<textarea class="answer-box" name="answer" maxlength="20000" required ${paused?'disabled':''} placeholder="输入回答，或使用语音转写">${esc(answerDraft)}</textarea></label><p class="subtle ${recording?'recording':''}" id="speech-status">${recording?'● 正在转写，结束后请检查文字':''}</p><div class="actions"><button type="button" data-action="speech" class="secondary" ${paused?'disabled':''}>${recording?'停止转写':'语音输入'}</button><button type="submit" ${paused?'disabled':''}>提交回答</button><button type="button" class="ghost" data-control="skip" ${paused?'disabled':''}>暂时跳过</button></div><label class="checkline form-section"><input id="speech-consent" type="checkbox" ${speechConsent?'checked':''}><span>启用语音转写（音频可能由浏览器服务商处理）</span></label></form>`}</section></div>`;
+  if(!current||current.status==='complete')return heading('模拟面试','')+'<section class="card empty"><h2>准备好，开始你的下一场</h2><p>选择院校专业与材料，进入语音模拟面试。</p><a class="button" href="#setup">新建面试</a></section>';
+  return heading('模拟面试',esc(targetLabel(current.profile))+' / 第 '+current.profile.attempt+' 次',badge(current.mode==='demo'?'流程演示 / 暂不评分':'模型已连接')+' <span class="timer" id="elapsed">00:00</span>')+renderInterview(current,{config,answerDraft,speechConsent,camera:multimodal.state.camera,voiceState});
 }
+
 function legacyReports(){
   const s=current?.report?current:null;
   if(!s)return heading('面试结果','')+`<section class="card">${sessionRows(sessions.filter(s=>s.status==='complete'))}</section>`;
@@ -145,6 +154,7 @@ function sourcePage(){return heading('参考资料','')+`
   <section class="card"><h2>资料缓存</h2>${sources.length?sources.map(s=>sourceHTML(s)).join(''):'<div class="empty">还没有保存参考来源。</div>'}<p class="page-note">每条资料保留来源、获取时间与核验状态。作品集水平以实际作品和评分依据讨论，不从网上样例推算学生排名。</p></section>`;}
 function render(){
   const root=$('#app'),reading=page==='reports'&&document.body.dataset.page==='reports'&&root.dataset.reportSession===current?.id?captureReportReading(root):null;
+  const previousQuestion=root.dataset.interviewQuestion;
   $('#app').innerHTML=({home,setup,'exam-library':()=>renderExamLibrary({library:examLibrary,templates:config.templates,target:draft,filter:libraryFilter}),devices,interview,reports,sources:sourcePage}[page]||home)();
   organizePage($('#app'),page);
   root.dataset.reportSession=page==='reports'?(current?.id??''):'';
@@ -155,32 +165,62 @@ function render(){
   for(const name of ['#local-preview','#interview-camera'])if($(name)&&camera)$(name).srcObject=camera;
   if($('.transcript'))$('.transcript').scrollTop=$('.transcript').scrollHeight;
   multimodal.sync(page,current).catch(e=>toast(e.message));
+  syncVoice();updateVoiceUI();
+  const questionKey=page==='interview'&&current?.status!=='complete'?current?.id+':'+[...(current?.turns??[])].reverse().find(t=>t.role==='interviewer')?.id:'';
+  root.dataset.interviewQuestion=questionKey;
+  if(previousQuestion&&questionKey&&previousQuestion!==questionKey)requestAnimationFrame(()=>{if(root.dataset.interviewQuestion!==questionKey)return;const title=root.querySelector('.iv-journey-heading h2');if(title){title.setAttribute('tabindex','-1');title.focus({preventScroll:true});}root.querySelector('.iv-journey')?.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});});
 }
-function navigate(){captureDraft();if($('#answer-form'))answerDraft=$('#answer-form textarea').value;stopSpeech();page=location.hash.slice(1)||'home';if(!labels[page])page='home';render();window.scrollTo({top:0,behavior:'instant'});}
+function navigate(){captureDraft();if($('#answer-form')&&!busy&&!completionIntent&&current?.turns?.at(-1)?.role==='interviewer')answerDraft=$('#answer-form textarea').value;closeVoiceConfirmation();page=location.hash.slice(1)||'home';if(!labels[page])page='home';render();window.scrollTo({top:0,behavior:'instant'});}
 async function refresh(){[materials,sessions,sources,examLibrary]=await Promise.all([api('/api/materials'),api('/api/sessions'),api('/api/sources'),api('/api/exam-library')]);}
 async function run(fn){if(busy)return;busy=true;document.body.classList.add('busy');document.querySelectorAll('button:not([data-shell-control])').forEach(b=>b.disabled=true);try{await fn();}catch(e){toast(e.message);}finally{busy=false;document.body.classList.remove('busy');render();}}
 async function upload(input){captureDraft();const kind=input.dataset.upload,file=input.files[0];if(!file)return;const form=new FormData();form.append('file',file);form.append('kind',kind);if(kind==='portfolio'&&draft.portfolioNotes)form.append('suppliedText',draft.portfolioNotes);toast('正在读取材料…');const m=await api('/api/materials',{method:'POST',body:form});materials.push(m);selected[kind]=m.id;if(kind==='rules')draft.rulesText=m.text;if(kind==='rubric')draft.rubricText=m.text;persist();toast(m.status==='needs_text'?'已保存原件，请在下方补充可读取的文字内容':'材料已保存');}
-function stopSpeech(){if(recognition){recognition.stop();recognition=null;}recording=false;}
-async function sense(channel,type,value){if(!current||current.status==='complete')return;try{current=await post(`/api/sessions/${current.id}/sensors`,{events:[{channel,type,value,atMs:Math.max(0,Date.now()-Date.parse(current.createdAt))}]});}catch{ /* Observation loss never blocks an answer. */ }}
-async function toggleCamera(){await multimodal.camera();}
-function speak(){if(!current)return;const q=[...current.turns].reverse().find(t=>t.role==='interviewer');const utterance=new SpeechSynthesisUtterance(q.content);utterance.lang=current.profile.stages[current.stageIndex].language;speechSynthesis.cancel();speechSynthesis.speak(utterance);}
-function startSpeech(){
-  if(recording){stopSpeech();return;}
-  if(!speechConsent)throw new Error('请先勾选允许使用浏览器语音服务，或直接输入文字');
-  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SpeechRecognition)throw new Error('此浏览器暂不支持语音转写，请使用文字输入');
-  recognition=new SpeechRecognition();recognition.lang=current.profile.stages[current.stageIndex].language;recognition.continuous=true;recognition.interimResults=false;
-  recognition.onresult=e=>{const box=$('#answer-form textarea');if(!box)return;for(let i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)box.value+=`${box.value?' ':''}${e.results[i][0].transcript}`;answerDraft=box.value;};
-  recognition.onerror=e=>{toast(`语音转写未完成（${e.error}），可继续文字输入`);stopSpeech();if(page==='interview')render();};
-  recognition.onspeechstart=()=>sense('audio','speech_interval','browser_speech_start');
-  recognition.onspeechend=()=>sense('audio','speech_interval','browser_speech_end');
-  recognition.onend=()=>{recording=false;if($('#speech-status'))$('#speech-status').textContent='转写已结束，请检查文字后提交';};
-  speechStarted=Date.now();recognition.start();recording=true;
+function updateVoiceUI(){
+  if(page!=='interview')return;
+  const root=$('#interview-experience');if(!root)return;
+  updateInterviewVoice(root,completionIntent?{...voiceState,phase:'processing',message:'正在保存回答并准备下一环节…'}:voiceState,{speechConsent,paused:current?.status==='paused'});
+  const final=$('#voice-final'),interim=$('#voice-interim');
+  if(final)final.textContent=voiceState.finalText||(!voiceState.interimText?answerDraft:'');
+  if(interim)interim.textContent=voiceState.interimText||'';
+  root.setAttribute('aria-busy',String(busy));
+  if(busy)root.querySelectorAll('button').forEach(button=>button.disabled=true);
 }
+function syncVoice(){
+  const question=[...(current?.turns??[])].reverse().find(t=>t.role==='interviewer'),last=current?.turns?.at(-1),stage=current?.profile?.stages?.[current.stageIndex];
+  return voice.sync({sessionId:current?.id,questionId:question?.id,text:question?.content??'',language:stage?.language??'zh-CN',stageId:stage?.id,active:page==='interview'&&current?.status==='active',answered:last?.role==='candidate',consent:speechConsent,draft:answerDraft}).catch(e=>toast(e.message));
+}
+async function stopSpeech(){answerDraft=await voice.stop();return answerDraft;}
+async function toggleCamera(){await multimodal.camera();}
+function closeVoiceConfirmation(){const dialog=document.getElementById('voice-silence-dialog');if(dialog?.open)dialog.close();}
+function showVoiceConfirmation(){
+  if(page!=='interview'||current?.status!=='active'||busy||completionIntent)return;
+  let dialog=document.getElementById('voice-silence-dialog');
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='voice-silence-dialog';dialog.className='iv-confirm-dialog';dialog.setAttribute('aria-labelledby','silence-title');dialog.innerHTML='<div class="iv-confirm-icon" aria-hidden="true">✓</div><h2 id="silence-title">这道题，回答完了吗？</h2><p>有一段时间没有新的语音。已识别的内容会保留，由你决定何时结束。</p><div class="iv-confirm-preview" id="voice-silence-preview"></div><div class="actions"><button type="button" class="secondary" data-action="voice-continue">我还想补充</button><button type="button" class="primary" data-action="voice-confirm-complete">回答完毕</button></div>';dialog.addEventListener('cancel',()=>{voice.continueAnswer().catch(e=>toast(e.message));});document.body.append(dialog);}
+  document.getElementById('voice-silence-preview').textContent=answerDraft;
+  if(!dialog.open)dialog.showModal();
+}
+async function submitSpokenAnswer({finish=false}={}){
+  closeVoiceConfirmation();completionIntent=true;
+  try{
+    const text=await voice.finish(),hadSpeech=voice.state.hasSpeech;answerDraft=text;
+    const session=current,questionId=current?.turns?.at(-1)?.id;
+    try{
+      current=await completeInterviewAnswer({session,answer:text,inputMode:hadSpeech?'speech':'text',durationMs:Date.now()-(speechStarted||answerStarted||Date.now()),finish},{post,onSaved:saved=>{current=saved;answerDraft='';speechStarted=0;answerStarted=0;}});
+    }catch(error){
+      // A lost response may still have saved successfully. Reconcile before allowing a retry.
+      try{const saved=await api('/api/sessions/'+session.id);if(saved.turns.some(t=>t.role==='candidate'&&t.questionId===questionId)){current=saved;answerDraft='';speechStarted=0;answerStarted=0;}}catch{}
+      throw error;
+    }
+    await refresh();
+    if(current.status==='complete'){await multimodal.stop();location.hash='reports';page='reports';}
+    else toast('回答已保存，进入'+(current.profile.stages[current.stageIndex]?.name??'下一环节'));
+  }finally{completionIntent=false;}
+}
+
 document.addEventListener('change',e=>{
   if(e.target.dataset.libraryFilter){libraryFilter[e.target.dataset.libraryFilter]=e.target.value;if(e.target.dataset.libraryFilter==='schoolId')libraryFilter.collegeId='';render();return;}
   if(e.target.dataset.improvement!==undefined)run(async()=>{current=await post(`/api/sessions/${current.id}/improvements`,{index:Number(e.target.dataset.improvement),checked:e.target.checked});});
   if(e.target.matches('[data-upload]'))run(()=>upload(e.target));
-  if(e.target.id==='speech-consent')speechConsent=e.target.checked;
+  if(e.target.id==='speech-consent'){speechConsent=e.target.checked;if(!speechConsent)voice.stop().then(()=>syncVoice());else syncVoice();updateVoiceUI();}
   if(e.target.closest('#setup-form')&&['schoolId','collegeId','programId','directionId'].includes(e.target.name)) {
     const previous={...draft}; const field=e.target.name, value=e.target.value;
     captureDraft();
@@ -195,7 +235,8 @@ document.addEventListener('change',e=>{
   }
   if(e.target.closest('#setup-form'))captureDraft();
 });
-document.addEventListener('input',e=>{if(e.target.matches('#answer-form textarea')){answerDraft=e.target.value;if(!answerStarted)answerStarted=Date.now();}});
+document.addEventListener('input',e=>{if(e.target.matches('#answer-form textarea')){answerDraft=e.target.value;voice.setDraft(answerDraft);if(!answerStarted)answerStarted=Date.now();}});
+document.addEventListener('toggle',e=>{if(e.target.matches?.('[data-text-assist]')&&e.target.open&&voiceState.recognitionSupported!==false){const box=e.target.querySelector('textarea');if(box)box.readOnly=true;voice.stop().catch(error=>toast(error.message)).finally(()=>{if(box)box.readOnly=false;});}},true);
 document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;run(async()=>{
   if(form.id==='setup-form'){
     captureDraft();const materialIds=Object.values(selected).filter(id=>materials.some(m=>m.id===id));
@@ -205,13 +246,24 @@ document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;ru
     const profile=await post('/api/profiles',{...draft,materialIds,stages:draft.stages.map(id=>({id,minutes:draft['minutes-'+id]})),officialRubric:draft.official.length?draft.official:null});
     toast('正在生成本场面试计划…');current=await post('/api/sessions',{profileId:profile.id});localStorage.setItem('onstage.active',current.id);answerDraft='';await refresh();location.hash='interview';page='interview';
   }else if(form.id==='answer-form'){
-    const answer=form.elements.answer.value.trim();stopSpeech();toast('正在保存回答，评分将在后台完成…');current=await post(`/api/sessions/${current.id}/answer`,{answer,questionId:current.turns.at(-1).id,inputMode:speechStarted?'speech':'text',durationMs:speechStarted?Date.now()-speechStarted:answerStarted?Date.now()-answerStarted:0});answerDraft='';speechStarted=0;answerStarted=0;
+    voice.setDraft(form.elements.answer.value);await submitSpokenAnswer();
   }else if(form.id==='source-form'){await post('/api/sources',Object.fromEntries(new FormData(form)));await refresh();toast('来源已保存，核验状态为待核验');}
   else if(form.id==='search-form'){const r=await post('/api/search',Object.fromEntries(new FormData(form)));searchResults=r.results;toast(`找到 ${searchResults.length} 条待核验线索`);}
 });});
 document.addEventListener('click',e=>{
   const target=e.target.closest('button');if(!target||(target.form&&target.type==='submit'))return;
   if(target.hasAttribute('data-shell-control'))return;
+  if(['voice-start','voice-repeat','voice-toggle','voice-continue'].includes(target.dataset.action)){
+    if(busy)return;
+    const action=target.dataset.action;
+    if(action==='voice-start'){const continuing=!!answerDraft.trim();speechConsent=true;const consent=$('#speech-consent');if(consent)consent.checked=true;syncVoice().then(()=>continuing?voice.listen():voice.begin()).catch(e=>toast(e.message));}
+    else if(action==='voice-repeat')voice.repeatQuestion().catch(e=>toast(e.message));
+    else if(action==='voice-continue'){closeVoiceConfirmation();voice.continueAnswer().catch(e=>toast(e.message));}
+    else if(['listening','connecting'].includes(voiceState.phase))voice.stop().catch(e=>toast(e.message));
+    else{speechConsent=true;syncVoice().then(()=>voice.listen()).catch(e=>toast(e.message));}
+    return;
+  }
+  if(['voice-complete','voice-confirm-complete'].includes(target.dataset.action)){run(()=>submitSpokenAnswer());return;}
   if(target.hasAttribute('data-jump-stage')){revealReviewTarget(document.getElementById(stageReviewId(target.dataset.jumpStage)));return;}
   if(target.hasAttribute('data-jump-overview')){revealReviewTarget(document.getElementById('stage-performance'));return;}
   if(target.dataset.jumpAnswer){revealReviewTarget(document.getElementById('answer-'+target.dataset.jumpAnswer));return;}
@@ -227,12 +279,16 @@ document.addEventListener('click',e=>{
   if(target.dataset.removeRubric!==undefined){captureDraft();draft.official.splice(Number(target.dataset.removeRubric),1);persist();render();return;}
   if(target.closest('#multimodal-root'))return;
   run(async()=>{
-    if(target.dataset.session){await multimodal.stop();stopSpeech();current=await api(`/api/sessions/${target.dataset.session}`);localStorage.setItem('onstage.active',current.id);answerDraft='';page=current.status==='complete'?'reports':'interview';location.hash=page;}
-    if(target.dataset.control){if(['pause','finish'].includes(target.dataset.control))await multimodal.stop();stopSpeech();speechSynthesis.cancel();toast(target.dataset.control==='finish'?'正在生成复盘报告…':'正在处理…');current=await post(`/api/sessions/${current.id}/action`,{action:target.dataset.control});if(!['pause','resume'].includes(target.dataset.control)){answerDraft='';answerStarted=0;}await refresh();if(current.status==='complete'){location.hash='reports';page='reports';}}
+    if(target.dataset.session){await multimodal.stop();await stopSpeech();current=await api(`/api/sessions/${target.dataset.session}`);localStorage.setItem('onstage.active',current.id);answerDraft='';page=current.status==='complete'?'reports':'interview';location.hash=page;}
+    if(target.dataset.control){
+      closeVoiceConfirmation();
+      if(['pause','finish'].includes(target.dataset.control))await multimodal.stop();
+      await stopSpeech();
+      if(target.dataset.control==='finish'&&current?.turns?.at(-1)?.role==='interviewer'&&answerDraft.trim()){await submitSpokenAnswer({finish:true});return;}
+      toast(target.dataset.control==='finish'?'正在生成复盘报告…':'正在处理…');current=await post(`/api/sessions/${current.id}/action`,{action:target.dataset.control});if(!['pause','resume'].includes(target.dataset.control)){answerDraft='';answerStarted=0;speechStarted=0;}await refresh();if(current.status==='complete'){location.hash='reports';page='reports';}else if(target.dataset.control==='resume'&&speechConsent)syncVoice().then(()=>voice.continueAnswer()).catch(e=>toast(e.message));
+    }
     if(target.dataset.action==='camera')await toggleCamera();
     if(target.dataset.action==='mic-test'){if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}else mic=await navigator.mediaDevices.getUserMedia({audio:true,video:false});}
-    if(target.dataset.action==='speech')startSpeech();
-    if(target.dataset.action==='speak')speak();
     if(target.dataset.action==='new-attempt'){draft={...current.profile,stages:current.profile.stages.map(s=>s.id),official:current.profile.officialRubric||[],attempt:Number(current.profile.attempt)+1,interviewTime:new Date().toLocaleString('sv-SE').slice(0,16).replace(' ','T')};for(const s of current.profile.stages)draft['minutes-'+s.id]=s.minutes;selected={};for(const m of current.materials)selected[m.kind]=m.id;persist();location.hash='setup';page='setup';}
     if(target.dataset.addSearch!==undefined){await post('/api/sources',searchResults[Number(target.dataset.addSearch)]);await refresh();toast('检索线索已保存');}
   });
@@ -243,9 +299,9 @@ setInterval(async()=>{
   if(scoreRefreshBusy||busy||!current||!['interview','reports'].includes(page))return;
   const needs=current.scoringJob?.status==='running'||current.turns?.some(t=>!t.skipped&&t.role==='candidate'&&['pending','running','partial'].includes(t.scoring?.status))||current.report?.performance?.pending||current.status==='complete'&&current.profile.officialRubric&&!['assessed','not_configured','unavailable','partial','unassessed'].includes(current.report?.official?.status);
   if(!needs)return;scoreRefreshBusy=true;
-  try{const id=current.id,next=await api('/api/sessions/'+id);if(current?.id!==id)return;const changed=JSON.stringify([current.turns.map(t=>t.scoring),current.report?.generatedAt,current.scoringJob?.status])!==JSON.stringify([next.turns.map(t=>t.scoring),next.report?.generatedAt,next.scoringJob?.status]);current=next;if(changed){if(page==='interview'){const panel=document.getElementById('scoring-progress');if(panel)panel.outerHTML=scoringPanel(current,true);}else render();}}catch{}finally{scoreRefreshBusy=false;}
+  try{const id=current.id,next=await api('/api/sessions/'+id);if(current?.id!==id||busy||completionIntent)return;const changed=JSON.stringify([current.turns.map(t=>t.scoring),current.report?.generatedAt,current.scoringJob?.status])!==JSON.stringify([next.turns.map(t=>t.scoring),next.report?.generatedAt,next.scoringJob?.status]);current=next;if(changed){if(page==='interview'){const panel=document.getElementById('scoring-progress');if(panel)panel.outerHTML=compactInterviewProgress(current);}else render();}}catch{}finally{scoreRefreshBusy=false;}
 },3000);
 window.addEventListener('hashchange',navigate);
-window.addEventListener('beforeunload',()=>{captureDraft();camera?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());stopSpeech();});
+window.addEventListener('beforeunload',()=>{captureDraft();camera?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());voice.destroy();});
 setInterval(()=>{const timer=$('#elapsed');if(timer&&current){const sec=Math.floor((current.activeMs??0)/1000+(current.status==='active'?(Date.now()-Date.parse(current.lastResumedAt??current.createdAt))/1000:0));timer.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;}},1000);
 try{config=await api('/api/config');const repaired=reconcileCatalogDraft(config.templates,draft,selected);draft=repaired.target;selected=repaired.materials;if(repaired.changed){persist();toast('目录已更新，请重新确认目标细则与评分标准');}await refresh();const active=localStorage.getItem('onstage.active');if(active){try{current=await api(`/api/sessions/${active}`);}catch{localStorage.removeItem('onstage.active');}}$('#runtime-mode').textContent=config.mode==='llm'?'模型已连接':'流程演示模式';navigate();}catch(e){$('#app').innerHTML=`<section class="card empty"><h2>暂时无法连接练习空间</h2><p>${esc(e.message)}</p></section>`;}
