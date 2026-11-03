@@ -1,4 +1,6 @@
 import {reportDashboard} from './report-visuals.js';
+import {renderAnswerReview} from './answer-review.js';
+import {stageReviewId,revealReviewTarget,captureReportReading,restoreReportReading} from './report-navigation.js';
 import {scoringPanel} from './scoring-ui.js';
 import {organizePage} from './ui-layout.js';
 import {MultimodalHost} from './multimodal-host.js';
@@ -110,10 +112,7 @@ function evidenceCard(e,s,index){
   return '<article class="evidence-record '+(e.group==='language'?'language-record':'')+'" data-evidence-record="'+esc(e.id??index)+'"><div class="evidence-record-head"><div><span class="evidence-id">E'+String(index+1).padStart(2,'0')+'</span><strong>'+esc(e.name??e.dimension??e.dimensionId??'回答证据')+'</strong></div>'+evidenceBadge(e)+'</div>'+(question?.content||e.question?'<p class="evidence-question">问题：'+esc(question?.content??e.question)+'</p>':'')+(quote?'<blockquote>'+esc(quote)+'</blockquote>':'<p class="unobserved-note">没有足够的回答证据支持本项判断。</p>')+'<dl class="evidence-notes">'+(e.reason||e.quality?'<div><dt>判断依据</dt><dd>'+esc(textValue(e.reason??e.quality))+'</dd></div>':'')+(e.limitation?'<div><dt>事实边界</dt><dd>'+esc(textValue(e.limitation))+'</dd></div>':'')+(nextProbe?'<div><dt>下一追问</dt><dd>'+esc(nextProbe)+'</dd></div>':'')+'</dl>'+(Array.isArray(e.counterevidence)&&e.counterevidence.length?'<details><summary>反例与修正 / '+e.counterevidence.length+' 条</summary>'+e.counterevidence.map(x=>'<blockquote>'+esc(x.quote??textValue(x))+'</blockquote><p class="subtle">'+esc(x.reason??x.limitation??'')+'</p>'+(x.correction?'<p class="evidence-correction">修正判断：'+esc(x.correction)+'</p>':'')).join('')+'</details>':'')+'<div class="evidence-record-foot"><span class="subtle">'+(e.independent===false||e.duplicateOf?'重复片段，不增加独立证据':e.group==='language'?'语言表达证据':'专业能力证据')+'</span>'+(answer?'<button type="button" class="small ghost" data-jump-answer="'+esc(answer.id)+'">定位原回答 ↗</button>':'')+'</div></article>';
 }
 function reportQuestions(s){
-  return '<section class="card report-questions" id="answer-records"><div class="report-section-heading"><div><p class="eyebrow">ANSWER BY ANSWER</p><h2>问答回看</h2></div><span class="subtle"></span></div>'+s.turns.filter(t=>t.role==='candidate').map((t,i)=>{
-    const ev=t.evaluation??{},q=s.turns.find(q=>q.id===t.questionId),all=[...(ev.dimensions??[]),...(ev.languageDimensions??[])];
-    return '<article class="answer-record" id="answer-'+esc(t.id)+'"><div class="answer-record-heading"><span class="question-index">'+String(i+1).padStart(2,'0')+'</span><div><span class="subtle">'+esc(config.stages.find(st=>st.id===t.stageId)?.name??'面试回答')+'</span><h3>'+esc(q?.content??'本题回答')+'</h3></div>'+(t.skipped?badge('已跳过','gray'):'')+'</div>'+(t.skipped?'<div class="unobserved-note">本题已跳过</div>':'<blockquote class="original-answer">'+esc(t.content)+'</blockquote>')+(t.scoring?.status==='pending'||t.scoring?.status==='running'||ev.mode==='unavailable'?'<p class="unobserved-note">已作答，评分尚未完成。请查看评分进度并重试，不作为能力不足。</p>':'')+(ev.feedback?'<p class="question-feedback">'+esc(ev.feedback)+'</p>':'')+'<div class="question-statuses">'+all.map(d=>'<span>'+esc(d.name??d.id)+' '+evidenceBadge(d)+'</span>').join('')+'</div>'+(ev.improvedAnswer||ev.exercise?'<details class="coaching-details"><summary>改写建议与下一步练习</summary>'+(ev.improvedAnswer?'<div class="coaching-block"><h4>改写建议</h4><p>'+esc(textValue(ev.improvedAnswer))+'</p><span class="subtle">仅示范表达组织，不能作为个人经历的新增证据。</span></div>':'')+(ev.exercise?'<div class="coaching-block"><h4>下一步练习</h4><p>'+esc(textValue(ev.exercise))+'</p></div>':'')+'</details>':'')+'</article>';
-  }).join('')+(s.turns.some(t=>t.role==='candidate')?'':'<div class="empty">本场尚未作答</div>')+'</section>';
+  return renderAnswerReview(s,{stages:config.stages});
 }
 function reports(){
   const s=current?.report?current:null;
@@ -145,8 +144,11 @@ function sourcePage(){return heading('参考资料','')+`
   <section class="card"><h2>添加参考来源</h2><form id="source-form"><div class="form-grid">${sourceTargetFields()}<label class="field">来源类型<select name="type"><option value="official">院校官方资料</option><option value="experience">面试经验贴</option><option value="portfolio_reference">作品集参考</option></select></label>${formField('标题','title','')}${formField('网页链接','url','','url')}<label class="field">发布日期（选填）<input name="publishedAt" type="date"></label><label class="field wide">摘要与适用范围<textarea name="summary" placeholder="记录资料所对应的专业、年份、考核方式；经验贴只作练习线索，不视为官方标准。"></textarea></label></div><div class="form-actions"><button class="source-primary">保存来源</button></div></form></section>
   <section class="card"><h2>资料缓存</h2>${sources.length?sources.map(s=>sourceHTML(s)).join(''):'<div class="empty">还没有保存参考来源。</div>'}<p class="page-note">每条资料保留来源、获取时间与核验状态。作品集水平以实际作品和评分依据讨论，不从网上样例推算学生排名。</p></section>`;}
 function render(){
+  const root=$('#app'),reading=page==='reports'&&document.body.dataset.page==='reports'&&root.dataset.reportSession===current?.id?captureReportReading(root):null;
   $('#app').innerHTML=({home,setup,'exam-library':()=>renderExamLibrary({library:examLibrary,templates:config.templates,target:draft,filter:libraryFilter}),devices,interview,reports,sources:sourcePage}[page]||home)();
   organizePage($('#app'),page);
+  root.dataset.reportSession=page==='reports'?(current?.id??''):'';
+  restoreReportReading(root,reading);
   document.body.dataset.page=page;
   document.querySelectorAll('nav a').forEach(a=>{const active=a.dataset.page===page;a.classList.toggle('active',active);if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
   document.querySelectorAll('[data-width]').forEach(el=>el.style.width=`${el.dataset.width}%`);
@@ -210,7 +212,9 @@ document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;ru
 document.addEventListener('click',e=>{
   const target=e.target.closest('button');if(!target||(target.form&&target.type==='submit'))return;
   if(target.hasAttribute('data-shell-control'))return;
-  if(target.dataset.jumpAnswer){const record=document.getElementById('answer-'+target.dataset.jumpAnswer);if(record){window.scrollTo({top:window.scrollY+record.getBoundingClientRect().top-window.innerHeight/2+record.getBoundingClientRect().height/2,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});record.classList.add('answer-highlight');setTimeout(()=>record.classList.remove('answer-highlight'),2200);}return;}
+  if(target.hasAttribute('data-jump-stage')){revealReviewTarget(document.getElementById(stageReviewId(target.dataset.jumpStage)));return;}
+  if(target.hasAttribute('data-jump-overview')){revealReviewTarget(document.getElementById('stage-performance'));return;}
+  if(target.dataset.jumpAnswer){revealReviewTarget(document.getElementById('answer-'+target.dataset.jumpAnswer));return;}
   if(target.hasAttribute('data-retry-scores')){run(async()=>{current=await post(`/api/sessions/${current.id}/action`,{action:'retry-scores'});toast('补评已排队，完成后报告会自动更新');});return;}
   if(target.dataset.practice){draft.stages=[target.dataset.practice];persist();location.hash='setup';return;}
   if(target.dataset.action==='add-rubric'){captureDraft();draft.official.push({name:'',weight:'',criterion:''});persist();render();return;}
