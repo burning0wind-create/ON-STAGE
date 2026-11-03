@@ -1,6 +1,7 @@
 import {reportDashboard} from './report-visuals.js';
 import {VoiceInterview} from './voice-interview.js';
-import {renderInterview,compactInterviewProgress,updateInterviewVoice} from './interview-view.js';
+import {renderInterview,compactInterviewProgress,updateInterviewVoice,updateSelfCamera} from './interview-view.js';
+import {SelfCamera} from './self-camera.js';
 import {completeInterviewAnswer} from './interview-completion.js';
 import {renderAnswerReview} from './answer-review.js';
 import {stageReviewId,revealReviewTarget,captureReportReading,restoreReportReading} from './report-navigation.js';
@@ -37,6 +38,8 @@ async function api(url,options={}) {
 const post=(url,data)=>api(url,{method:'POST',body:JSON.stringify(data)});
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,6000);}
 const multimodal=new MultimodalHost({api,post,toast});
+const selfCamera=new SelfCamera({bridge:multimodal,onState:()=>updateCameraPreview()});
+window.addEventListener('onstage-camera-state',()=>{if(page==='interview'&&current?.status!=='complete')selfCamera.refresh();});
 function persist(){localStorage.setItem('onstage.draft',JSON.stringify(draft));localStorage.setItem('onstage.materials',JSON.stringify(selected));}
 function heading(title,subtitle,action=''){return `<div class="page-heading"><div><h1>${title}</h1><p class="subtle">${subtitle}</p></div>${action}</div>`;}
 function badge(text,kind=''){return `<span class="pill ${kind}">${esc(text)}</span>`;}
@@ -102,7 +105,7 @@ function devices(){return heading('设备与环境','','<a href="#setup" class="
   <div class="device-audio"><label class="checkline"><input id="speech-consent" type="checkbox" ${speechConsent?'checked':''}><span>启用浏览器语音转写（音频可能由浏览器服务商处理）</span></label><button data-action="mic-test" class="small secondary">${mic?'结束设备检查':'检查麦克风'}</button></div>`;}
 function interview(){
   if(!current||current.status==='complete')return heading('模拟面试','')+'<section class="card empty"><h2>准备好，开始你的下一场</h2><p>选择院校专业与材料，进入语音模拟面试。</p><a class="button" href="#setup">新建面试</a></section>';
-  return heading('模拟面试',esc(targetLabel(current.profile))+' / 第 '+current.profile.attempt+' 次',badge(current.mode==='demo'?'流程演示 / 暂不评分':'模型已连接')+' <span class="timer" id="elapsed">00:00</span>')+renderInterview(current,{config,answerDraft,speechConsent,camera:multimodal.state.camera,voiceState});
+  return heading('模拟面试',esc(targetLabel(current.profile))+' / 第 '+current.profile.attempt+' 次',badge(current.mode==='demo'?'流程演示 / 暂不评分':'模型已连接')+' <span class="timer" id="elapsed">00:00</span>')+renderInterview(current,{config,answerDraft,speechConsent,camera:multimodal.state.camera,voiceState,selfCamera:selfCamera.state});
 }
 
 function legacyReports(){
@@ -166,11 +169,12 @@ function render(){
   if($('.transcript'))$('.transcript').scrollTop=$('.transcript').scrollHeight;
   multimodal.sync(page,current).catch(e=>toast(e.message));
   syncVoice();updateVoiceUI();
+  if(page==='interview'){selfCamera.refresh();updateCameraPreview();}
   const questionKey=page==='interview'&&current?.status!=='complete'?current?.id+':'+[...(current?.turns??[])].reverse().find(t=>t.role==='interviewer')?.id:'';
   root.dataset.interviewQuestion=questionKey;
   if(previousQuestion&&questionKey&&previousQuestion!==questionKey)requestAnimationFrame(()=>{if(root.dataset.interviewQuestion!==questionKey)return;const title=root.querySelector('.iv-journey-heading h2');if(title){title.setAttribute('tabindex','-1');title.focus({preventScroll:true});}root.querySelector('.iv-journey')?.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});});
 }
-function navigate(){captureDraft();if($('#answer-form')&&!busy&&!completionIntent&&current?.turns?.at(-1)?.role==='interviewer')answerDraft=$('#answer-form textarea').value;closeVoiceConfirmation();page=location.hash.slice(1)||'home';if(!labels[page])page='home';render();window.scrollTo({top:0,behavior:'instant'});}
+function navigate(){captureDraft();if($('#answer-form')&&!busy&&!completionIntent&&current?.turns?.at(-1)?.role==='interviewer')answerDraft=$('#answer-form textarea').value;closeVoiceConfirmation();const previousPage=page;page=location.hash.slice(1)||'home';if(!labels[page])page='home';if(previousPage==='interview'&&page!=='interview')selfCamera.close().catch(e=>toast(e.message));render();window.scrollTo({top:0,behavior:'instant'});}
 async function refresh(){[materials,sessions,sources,examLibrary]=await Promise.all([api('/api/materials'),api('/api/sessions'),api('/api/sources'),api('/api/exam-library')]);}
 async function run(fn){if(busy)return;busy=true;document.body.classList.add('busy');document.querySelectorAll('button:not([data-shell-control])').forEach(b=>b.disabled=true);try{await fn();}catch(e){toast(e.message);}finally{busy=false;document.body.classList.remove('busy');render();}}
 async function upload(input){captureDraft();const kind=input.dataset.upload,file=input.files[0];if(!file)return;const form=new FormData();form.append('file',file);form.append('kind',kind);if(kind==='portfolio'&&draft.portfolioNotes)form.append('suppliedText',draft.portfolioNotes);toast('正在读取材料…');const m=await api('/api/materials',{method:'POST',body:form});materials.push(m);selected[kind]=m.id;if(kind==='rules')draft.rulesText=m.text;if(kind==='rubric')draft.rubricText=m.text;persist();toast(m.status==='needs_text'?'已保存原件，请在下方补充可读取的文字内容':'材料已保存');}
@@ -189,7 +193,8 @@ function syncVoice(){
   return voice.sync({sessionId:current?.id,questionId:question?.id,text:question?.content??'',language:stage?.language??'zh-CN',stageId:stage?.id,active:page==='interview'&&current?.status==='active',answered:last?.role==='candidate',consent:speechConsent,draft:answerDraft}).catch(e=>toast(e.message));
 }
 async function stopSpeech(){answerDraft=await voice.stop();return answerDraft;}
-async function toggleCamera(){await multimodal.camera();}
+function updateCameraPreview(){if(page!=='interview')return;const root=$('#interview-experience');if(!root)return;updateSelfCamera(root,selfCamera.state);selfCamera.bind($('#self-camera-video'));}
+async function toggleCamera(){if(page==='interview'){if(selfCamera.state.status==='active')await selfCamera.close();else await selfCamera.open();}else await multimodal.camera();}
 function closeVoiceConfirmation(){const dialog=document.getElementById('voice-silence-dialog');if(dialog?.open)dialog.close();}
 function showVoiceConfirmation(){
   if(page!=='interview'||current?.status!=='active'||busy||completionIntent)return;
@@ -211,7 +216,7 @@ async function submitSpokenAnswer({finish=false}={}){
       throw error;
     }
     await refresh();
-    if(current.status==='complete'){await multimodal.stop();location.hash='reports';page='reports';}
+    if(current.status==='complete'){try{await multimodal.stop();}catch(error){toast('面试已结束，行为记录仍待保存：'+error.message);}finally{await selfCamera.close();}location.hash='reports';page='reports';}
     else toast('回答已保存，进入'+(current.profile.stages[current.stageIndex]?.name??'下一环节'));
   }finally{completionIntent=false;}
 }
@@ -253,6 +258,8 @@ document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;ru
 document.addEventListener('click',e=>{
   const target=e.target.closest('button');if(!target||(target.form&&target.type==='submit'))return;
   if(target.hasAttribute('data-shell-control'))return;
+  if(target.dataset.action==='camera'&&page==='interview'){if(!busy)toggleCamera().catch(e=>toast(e.message));return;}
+  if(target.dataset.selfCamera){const action=target.dataset.selfCamera;if(action==='close')selfCamera.close().catch(e=>toast(e.message));else selfCamera.setView(action==='minimize'?'collapsed':action==='expand'?'expanded':'normal');return;}
   if(['voice-start','voice-repeat','voice-toggle','voice-continue'].includes(target.dataset.action)){
     if(busy)return;
     const action=target.dataset.action;
@@ -279,13 +286,13 @@ document.addEventListener('click',e=>{
   if(target.dataset.removeRubric!==undefined){captureDraft();draft.official.splice(Number(target.dataset.removeRubric),1);persist();render();return;}
   if(target.closest('#multimodal-root'))return;
   run(async()=>{
-    if(target.dataset.session){await multimodal.stop();await stopSpeech();current=await api(`/api/sessions/${target.dataset.session}`);localStorage.setItem('onstage.active',current.id);answerDraft='';page=current.status==='complete'?'reports':'interview';location.hash=page;}
+    if(target.dataset.session){await multimodal.stop();await selfCamera.close();await stopSpeech();current=await api(`/api/sessions/${target.dataset.session}`);localStorage.setItem('onstage.active',current.id);answerDraft='';page=current.status==='complete'?'reports':'interview';location.hash=page;}
     if(target.dataset.control){
       closeVoiceConfirmation();
       if(['pause','finish'].includes(target.dataset.control))await multimodal.stop();
       await stopSpeech();
       if(target.dataset.control==='finish'&&current?.turns?.at(-1)?.role==='interviewer'&&answerDraft.trim()){await submitSpokenAnswer({finish:true});return;}
-      toast(target.dataset.control==='finish'?'正在生成复盘报告…':'正在处理…');current=await post(`/api/sessions/${current.id}/action`,{action:target.dataset.control});if(!['pause','resume'].includes(target.dataset.control)){answerDraft='';answerStarted=0;speechStarted=0;}await refresh();if(current.status==='complete'){location.hash='reports';page='reports';}else if(target.dataset.control==='resume'&&speechConsent)syncVoice().then(()=>voice.continueAnswer()).catch(e=>toast(e.message));
+      toast(target.dataset.control==='finish'?'正在生成复盘报告…':'正在处理…');current=await post(`/api/sessions/${current.id}/action`,{action:target.dataset.control});if(!['pause','resume'].includes(target.dataset.control)){answerDraft='';answerStarted=0;speechStarted=0;}await refresh();if(current.status==='complete'){await selfCamera.close();location.hash='reports';page='reports';}else if(target.dataset.control==='resume'&&speechConsent)syncVoice().then(()=>voice.continueAnswer()).catch(e=>toast(e.message));
     }
     if(target.dataset.action==='camera')await toggleCamera();
     if(target.dataset.action==='mic-test'){if(mic){mic.getTracks().forEach(t=>t.stop());mic=null;}else mic=await navigator.mediaDevices.getUserMedia({audio:true,video:false});}
@@ -302,6 +309,6 @@ setInterval(async()=>{
   try{const id=current.id,next=await api('/api/sessions/'+id);if(current?.id!==id||busy||completionIntent)return;const changed=JSON.stringify([current.turns.map(t=>t.scoring),current.report?.generatedAt,current.scoringJob?.status])!==JSON.stringify([next.turns.map(t=>t.scoring),next.report?.generatedAt,next.scoringJob?.status]);current=next;if(changed){if(page==='interview'){const panel=document.getElementById('scoring-progress');if(panel)panel.outerHTML=compactInterviewProgress(current);}else render();}}catch{}finally{scoreRefreshBusy=false;}
 },3000);
 window.addEventListener('hashchange',navigate);
-window.addEventListener('beforeunload',()=>{captureDraft();camera?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());voice.destroy();});
+window.addEventListener('beforeunload',()=>{captureDraft();camera?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());voice.destroy();selfCamera.destroy();});
 setInterval(()=>{const timer=$('#elapsed');if(timer&&current){const sec=Math.floor((current.activeMs??0)/1000+(current.status==='active'?(Date.now()-Date.parse(current.lastResumedAt??current.createdAt))/1000:0));timer.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;}},1000);
 try{config=await api('/api/config');const repaired=reconcileCatalogDraft(config.templates,draft,selected);draft=repaired.target;selected=repaired.materials;if(repaired.changed){persist();toast('目录已更新，请重新确认目标细则与评分标准');}await refresh();const active=localStorage.getItem('onstage.active');if(active){try{current=await api(`/api/sessions/${active}`);}catch{localStorage.removeItem('onstage.active');}}$('#runtime-mode').textContent=config.mode==='llm'?'模型已连接':'流程演示模式';navigate();}catch(e){$('#app').innerHTML=`<section class="card empty"><h2>暂时无法连接练习空间</h2><p>${esc(e.message)}</p></section>`;}

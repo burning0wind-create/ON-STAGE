@@ -2,6 +2,9 @@ import {integration} from './app.js';
 import './host-layout.js';
 let parentContext=null,lastState='',saveSeq=0;
 const send=(type,data={})=>parent.postMessage({channel:'onstage-multimodal',type,...data},location.origin);
+// MediaStream is not postMessage-cloneable. The same-origin parent may only read
+// the existing camera stream; opening/closing still uses the validated command channel.
+window.onstageCameraPreview=Object.freeze({getStream:()=>integration.cameraStream()});
 window.addEventListener('message',async event=>{
   if(event.origin!==location.origin||event.source!==parent||event.data?.channel!=='onstage-host')return;
   const {requestId,type,data}=event.data;
@@ -11,6 +14,8 @@ window.addEventListener('message',async event=>{
     else if(type==='start'){if(!parentContext?.sessionId)throw Error('请先选择面试场次');result=integration.start();}
     else if(type==='stop'){result=integration.stop();}
     else if(type==='camera'){await integration.camera();result=true;}
+    else if(type==='camera-on'){await integration.setCamera(true);result=true;send('state',{state:integration.state()});}
+    else if(type==='camera-off'){await integration.setCamera(false);result=true;send('state',{state:integration.state()});}
     else if(type==='load'){integration.load(data);result=true;}
     else if(type==='view'){document.body.dataset.hostView=data;result=true;}
     else throw Error('不支持的采集操作');

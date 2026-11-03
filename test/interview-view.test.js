@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderInterview,compactInterviewProgress,updateInterviewVoice} from '../public/interview-view.js';
+import {renderInterview,compactInterviewProgress,updateInterviewVoice,renderSelfCamera,updateSelfCamera} from '../public/interview-view.js';
 
 const stages=[{id:'english',name:'英语问答',language:'en',minutes:5},{id:'portfolio',name:'作品集答辩',language:'zh-CN',minutes:8},{id:'design',name:'设计专业问答',language:'zh-CN',minutes:5},{id:'ethics',name:'综合素质与设计伦理',language:'zh-CN',minutes:3}];
 const session=()=>({id:'s1',status:'active',stageIndex:1,profile:{stages,year:2027,admissionType:'推免面试'},turns:[{id:'q1',role:'interviewer',stageId:'english',content:'Tell us about your project.'},{id:'a1',role:'candidate',stageId:'english',content:'My project.',scoring:{status:'complete'}},{id:'q2',role:'interviewer',stageId:'portfolio',content:'说明作品的研究依据。'}],materials:[],warnings:[]});
@@ -82,4 +82,33 @@ test('动态标签、回答、材料与提示全部转义；音频状态更新�
   assert.equal(textarea.value,'保留光标与内容');assert.equal(scene.dataset.voicePhase,'processing');assert.equal(nodes['#voice-complete'].disabled,true);assert.equal(nodes['#voice-repeat'].disabled,true);
   updateInterviewVoice(root,{phase:'listening'},{speechConsent:true});assert.equal(nodes['#voice-toggle'].textContent,'暂停收音');assert.equal(nodes['#voice-complete'].disabled,false);assert.equal(nodes['#speech-consent'].checked,true);
   updateInterviewVoice(root,{phase:'ready'},{speechConsent:true});assert.equal(nodes['#voice-toggle'].hidden,true);assert.equal(nodes['#voice-start'].hidden,false);
+});
+
+test('自拍小窗默认关闭且不伪造画面，授权连接后才展示静音实时视频与三个操作',()=>{
+  const off=renderSelfCamera();assert.match(off,/data-camera-status="off"[^>]*hidden/);assert.doesNotMatch(off,/<video|<img/);
+  for(const status of ['requesting','error'])assert.doesNotMatch(renderSelfCamera({status}),/<video/);
+  const active=renderInterview(session(),{selfCamera:{status:'active',view:'normal'}});
+  assert.match(active,/<video id="self-camera-video" autoplay muted playsinline/);
+  assert.match(active,/data-self-camera="minimize"/);assert.match(active,/data-self-camera="expand"/);assert.match(active,/data-self-camera="close" aria-label="关闭摄像头"/);
+  assert.equal((active.match(/id="self-camera-video"/g)||[]).length,1);assert.match(active,/aria-pressed="true"[^>]*>关闭我的画面/);
+  assert.doesNotMatch(active,/\sstyle=|getUserMedia|srcObject|麦克风已连接/);
+});
+
+test('收起和放大具有明确含义，权限状态与错误在画面外说明且保持转义',()=>{
+  const collapsed=renderSelfCamera({status:'active',view:'collapsed'});assert.match(collapsed,/is-collapsed/);assert.match(collapsed,/摄像头仍开启，展开预览/);assert.match(collapsed,/data-self-camera="close"/);
+  const expanded=renderSelfCamera({status:'active',view:'expanded'});assert.match(expanded,/is-expanded/);assert.match(expanded,/data-self-camera="restore" aria-label="恢复小窗大小"/);
+  const requesting=renderInterview(session(),{selfCamera:{status:'requesting'}});assert.match(requesting,/aria-pressed="false" disabled>正在开启画面/);assert.match(requesting,/正在请求摄像头权限/);
+  const error=renderInterview(session(),{selfCamera:{status:'error',error:'<script>权限错误</script>'}});assert.match(error,/id="self-camera-status" role="status" aria-live="polite"/);assert.match(error,/&lt;script&gt;权限错误/);assert.doesNotMatch(error,/<script>/);
+});
+
+test('切换小窗尺寸保留视频节点与表单，并在收起恢复时保留可用键盘焦点',()=>{
+  const video={},minimize={},label={},chip={focus(options){this.focused=options;}},expand={dataset:{selfCamera:'expand'},setAttribute(name,value){this[name]=value;},focus(options){this.focused=options;}};
+  const preview={dataset:{cameraStatus:'active',cameraView:'normal'},contains:node=>[minimize,chip,expand].includes(node),querySelector:selector=>({
+    '[data-self-camera="minimize"]':minimize,'[data-self-camera="expand"],.iv-self-camera-toolbar [data-self-camera="restore"]':expand,'.iv-self-camera-label':label,'.iv-self-camera-collapsed':chip,'.iv-self-camera-toolbar [data-self-camera="expand"]':expand,'#self-camera-video':video
+  })[selector]??null};
+  const status={classList:{toggle(){}}},button={setAttribute(name,value){this[name]=value;}};
+  const root={ownerDocument:{activeElement:minimize},querySelector:selector=>({'#self-camera':preview,'.iv-camera-control':button,'#self-camera-status':status})[selector]??null};
+  assert.equal(updateSelfCamera(root,{status:'active',view:'collapsed'}),video);assert.equal(preview.dataset.cameraView,'collapsed');assert.equal(chip.hidden,false);assert.deepEqual(chip.focused,{preventScroll:true});assert.match(status.textContent,/摄像头仍开启/);
+  root.ownerDocument.activeElement=chip;assert.equal(updateSelfCamera(root,{status:'active',view:'normal'}),video);assert.deepEqual(expand.focused,{preventScroll:true});assert.equal(chip.hidden,true);
+  updateSelfCamera(root,{status:'active',view:'expanded'});assert.equal(expand.dataset.selfCamera,'restore');assert.equal(expand['aria-label'],'恢复小窗大小');
 });

@@ -21,7 +21,7 @@ export class MultimodalHost {
     if(m.type==='ready')this.resolveReady();
     if(m.type==='reply'){const request=this.requests.get(m.requestId);if(request){clearTimeout(request.timeout);this.requests.delete(m.requestId);m.error?request.reject(Error(m.error)):request.resolve(m.result);}}
     if(m.type==='height'&&Number.isFinite(m.height))this.frame.style.height=`${Math.max(280,Math.min(200000,m.height+8))}px`;
-    if(m.type==='state'){this.state=m.state;this.status();this.maybeStart();}
+    if(m.type==='state'){this.state=m.state;this.status();this.notifyCameraState();this.maybeStart();}
     if(m.type==='capture')this.persist(m.capture);
   }
   status() {
@@ -83,4 +83,23 @@ export class MultimodalHost {
     await this.request('load',data);
   }
   async camera(){document.getElementById('multimodal-root').hidden=false;await this.request('camera');window.scrollTo({top:window.scrollY+this.root.getBoundingClientRect().top-24,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
+  getCameraStream(){
+    try{return this.frame.contentWindow.onstageCameraPreview?.getStream()??null;}catch{return null;}
+  }
+  notifyCameraState(){window.dispatchEvent(new CustomEvent('onstage-camera-state',{detail:{camera:!!this.state.camera,error:this.state.cameraError??''}}));}
+  async setCamera(enabled){
+    const operation=this.cameraOperation=(this.cameraOperation??0)+1;
+    try{await this.request(enabled?'camera-on':'camera-off');}
+    catch(error){
+      // A permission prompt can outlive the command timeout. Cancel that pending
+      // acquisition unless a newer user camera action has already superseded it.
+      if(enabled&&operation===this.cameraOperation)await this.request('camera-off').catch(()=>{});
+      throw error;
+    }
+    if(operation!==this.cameraOperation)return null;
+    const stream=this.getCameraStream();
+    this.state={...this.state,camera:!!stream,cameraError:''};this.status();this.notifyCameraState();
+    if(enabled&&!stream)throw Error('摄像头暂未就绪，请重新开启。');
+    return stream;
+  }
 }

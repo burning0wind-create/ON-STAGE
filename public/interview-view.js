@@ -10,6 +10,46 @@ const phaseLabels={speaking:'考官正在提问',connecting:'正在连接麦克�
 const phaseLabel=(phase,paused)=>paused?phaseLabels.paused:phaseLabels[phase]??'准备继续对话';
 const hasText=x=>typeof x==='string'&&x.trim().length>0;
 
+const cameraIcons={
+  camera:'<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><rect x="2.5" y="5" width="10" height="10" rx="2"/><path d="m12.5 8 5-2v8l-5-2"/></svg>',
+  minimize:'<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M4 10h12"/></svg>',
+  expand:'<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/></svg>',
+  restore:'<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M3 7h4V3m10 4h-4V3M7 17v-4H3m10 4v-4h4"/></svg>',
+  close:'<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg>'
+};
+function cameraState(value={}){return {status:['off','requesting','active','error'].includes(value.status)?value.status:'off',view:['normal','collapsed','expanded'].includes(value.view)?value.view:'normal',error:String(value.error??'')};}
+function cameraStatus(state){return state.error||({requesting:'正在请求摄像头权限，请在浏览器中确认。',error:'摄像头未开启，可检查设备或权限后重试。',active:state.view==='collapsed'?'小窗已收起，摄像头仍开启。':'我的画面已开启；收起仅隐藏预览，关闭将停止摄像头。'}[state.status]??'');}
+
+export function renderSelfCamera(value={}){
+  const state=cameraState(value),active=state.status==='active',expanded=state.view==='expanded',collapsed=state.view==='collapsed';
+  return `<div class="iv-self-camera is-${state.view}" role="group" id="self-camera" data-camera-status="${state.status}" data-camera-view="${state.view}" aria-label="我的摄像头预览" ${active?'':'hidden'}>${active?`<video id="self-camera-video" autoplay muted playsinline aria-label="我的实时摄像头画面"></video><div class="iv-self-camera-toolbar"><button type="button" data-self-camera="minimize" aria-label="收起我的画面，摄像头保持开启" title="收起预览" ${collapsed?'hidden':''}>${cameraIcons.minimize}</button><button type="button" data-self-camera="${expanded?'restore':'expand'}" aria-label="${expanded?'恢复小窗大小':'放大我的画面'}" title="${expanded?'恢复小窗':'放大预览'}" ${collapsed?'hidden':''}>${cameraIcons[expanded?'restore':'expand']}</button><button type="button" data-self-camera="close" aria-label="关闭摄像头" title="关闭摄像头">${cameraIcons.close}</button></div><div class="iv-self-camera-label" ${collapsed?'hidden':''}>${cameraIcons.camera}<span>我的画面</span></div><button type="button" class="iv-self-camera-collapsed" data-self-camera="restore" aria-label="我的画面，摄像头仍开启，展开预览" ${collapsed?'':'hidden'}>${cameraIcons.camera}<span>我的画面 · 展开</span></button>`:''}</div>`;
+}
+
+// Camera-only updates preserve the interview form and the current live video node.
+export function updateSelfCamera(root,value={}){
+  const state=cameraState(value),active=state.status==='active';
+  let preview=root.id==='self-camera'?root:root.querySelector('#self-camera');
+  const focused=root.ownerDocument?.activeElement,restoreFocus=!!(preview&&focused&&preview.contains(focused));
+  const wasCollapsed=preview?.dataset.cameraView==='collapsed';
+  if(preview){
+    const alreadyActive=preview.dataset.cameraStatus==='active';
+    if(alreadyActive!==active){const parent=preview.parentElement,doc=preview.ownerDocument;preview.outerHTML=renderSelfCamera(state);preview=parent?.querySelector('#self-camera')??doc?.getElementById('self-camera')??root.querySelector('#self-camera');}
+    if(preview){
+      preview.hidden=!active;preview.dataset.cameraStatus=state.status;preview.dataset.cameraView=state.view;preview.className='iv-self-camera is-'+state.view;
+      const collapsed=state.view==='collapsed',expanded=state.view==='expanded';
+      const minimize=preview.querySelector('[data-self-camera="minimize"]');if(minimize)minimize.hidden=collapsed;
+      const expand=preview.querySelector('[data-self-camera="expand"],.iv-self-camera-toolbar [data-self-camera="restore"]');
+      if(expand){expand.hidden=collapsed;expand.dataset.selfCamera=expanded?'restore':'expand';expand.setAttribute('aria-label',expanded?'恢复小窗大小':'放大我的画面');expand.title=expanded?'恢复小窗':'放大预览';expand.innerHTML=cameraIcons[expanded?'restore':'expand'];}
+      const label=preview.querySelector('.iv-self-camera-label');if(label)label.hidden=collapsed;
+      const chip=preview.querySelector('.iv-self-camera-collapsed');if(chip)chip.hidden=!collapsed;
+    }
+  }
+  const button=root.querySelector('.iv-camera-control');if(button){button.textContent=state.status==='requesting'?'正在开启画面…':active?'关闭我的画面':'开启我的画面';button.disabled=state.status==='requesting';button.setAttribute('aria-pressed',String(active));}
+  const status=root.querySelector('#self-camera-status');if(status){status.textContent=cameraStatus(state);status.hidden=!status.textContent;status.classList.toggle('is-error',!!state.error||state.status==='error');}
+  if(restoreFocus){if(!active)button?.focus({preventScroll:true});else if(state.view==='collapsed')preview?.querySelector('.iv-self-camera-collapsed')?.focus({preventScroll:true});else if(wasCollapsed)preview?.querySelector('.iv-self-camera-toolbar [data-self-camera="expand"]')?.focus({preventScroll:true});}
+  return preview?.querySelector('#self-camera-video')??null;
+}
+
 export function compactInterviewProgress(s){
   const answers=(s.turns??[]).filter(t=>t.role==='candidate'&&!t.skipped);
   const done=answers.filter(t=>t.scoring?.status==='complete'||(!t.scoring&&t.evaluation?.mode==='llm')).length;
@@ -29,7 +69,7 @@ function referencePanel(s,stage){
   return `<details class="iv-reference"><summary>本场材料与面试依据 <span>查看</span></summary><div class="iv-reference-body"><p>${esc(name)}</p><p class="iv-note">${esc(stage.name)} · ${esc(s.profile?.year)} ${esc(s.profile?.admissionType)}</p><div class="iv-material-links">${(s.materials??[]).filter(m=>Object.hasOwn(materials,m.kind)).map(m=>`<a class="button secondary" href="/api/materials/${encodeURIComponent(m.id)}/file" target="_blank" rel="noopener noreferrer">查看${materials[m.kind]} ↗</a>`).join('')}</div>${gaps.length?`<p class="iv-note">${esc(gaps.join('；'))}</p>`:''}${warnings.length?`<div class="iv-session-notes"><h3>本场说明</h3>${warnings.map(w=>`<p>${esc(w)}</p>`).join('')}</div>`:''}<p class="iv-note">内容评价与语言反馈分开；面试结束后查看完整复盘。</p></div></details>`;
 }
 
-export function renderInterview(s,{config={},answerDraft='',speechConsent=false,camera=false,voiceState={phase:'ready'},imagePath}={}){
+export function renderInterview(s,{config={},answerDraft='',speechConsent=false,camera=false,selfCamera={status:'off',view:'normal',error:''},voiceState={phase:'ready'},imagePath}={}){
   const stages=s.profile?.stages??[],stage=stages[s.stageIndex??0]??{},persona=personas[stage.id]??personas.design;
   const turns=s.turns??[],last=turns.at(-1),question=[...turns].reverse().find(t=>t.role==='interviewer');
   const answered=last?.role==='candidate',paused=s.status==='paused',phase=paused?'paused':voiceState.phase??'ready';
@@ -39,14 +79,16 @@ export function renderInterview(s,{config={},answerDraft='',speechConsent=false,
   const canComplete=!paused&&!overLimit&&!['speaking','connecting','processing','finishing'].includes(phase)&&(hasText(draft)||hasText(interim));
   const isListening=phase==='listening',isBusy=['speaking','connecting','processing','finishing'].includes(phase),showStart=!['speaking','connecting','listening','confirm','processing','finishing'].includes(phase);
   const nextHint=s.stageIndex<stages.length-1?'确认后保存回答，进入下一环节。':'确认后保存回答，生成本场复盘。';
+  const previewState=cameraState(selfCamera),previewMessage=cameraStatus(previewState);
   return `<div class="iv-experience" id="interview-experience" data-voice-phase="${esc(phase)}">
     ${stageRail(s)}
     <div class="iv-stage-layout"><div class="iv-examiner-column">
       <section class="iv-scene iv-single-image iv-persona-${Object.hasOwn(personas,stage.id)?stage.id:'design'}" id="interview-scene" data-voice-phase="${esc(phase)}" aria-label="${esc(persona.name)}虚拟练习场景">
-        <div class="iv-photo-frame"><img class="iv-portrait" src="${safeImage}" alt="虚构的${esc(persona.name)}形象" width="421" height="237" fetchpriority="high"><div class="iv-scene-top"><span class="iv-virtual-badge">虚拟考官 · ${esc(stage.name)}</span><span class="iv-presence"><i aria-hidden="true"></i><span id="voice-state-label">${phaseLabel(phase,paused)}</span></span></div></div>
+        <div class="iv-photo-frame"><img class="iv-portrait" src="${safeImage}" alt="虚构的${esc(persona.name)}形象" width="421" height="237" fetchpriority="high"><div class="iv-scene-top"><span class="iv-virtual-badge">虚拟考官 · ${esc(stage.name)}</span><span class="iv-presence"><i aria-hidden="true"></i><span id="voice-state-label">${phaseLabel(phase,paused)}</span></span></div>${renderSelfCamera(previewState)}</div>
         <div class="iv-scene-footer"><div class="iv-examiner-identity"><h3>${persona.name}</h3><p>${persona.focus}</p></div><div class="iv-sound-bars" aria-hidden="true">${Array.from({length:5},()=>'<i></i>').join('')}</div></div>
       </section>
-      <div class="iv-scene-controls"><button type="button" class="secondary" data-action="voice-repeat" id="voice-repeat" ${paused||!question||phase==='finishing'?'disabled':''}><span aria-hidden="true">↻</span> 重复问题</button><button type="button" class="secondary" data-control="${paused?'resume':'pause'}">${paused?'继续面试':'暂停面试'}</button><button type="button" class="ghost iv-camera-control" data-action="camera">${camera?'关闭我的画面':'开启我的画面'}</button><button type="button" class="ghost iv-end-control" data-control="finish">结束面试</button></div>
+      <div class="iv-scene-controls"><button type="button" class="secondary" data-action="voice-repeat" id="voice-repeat" ${paused||!question||phase==='finishing'?'disabled':''}><span aria-hidden="true">↻</span> 重复问题</button><button type="button" class="secondary" data-control="${paused?'resume':'pause'}">${paused?'继续面试':'暂停面试'}</button><button type="button" class="ghost iv-camera-control" data-action="camera" aria-controls="self-camera" aria-pressed="${previewState.status==='active'}" ${previewState.status==='requesting'?'disabled':''}>${previewState.status==='requesting'?'正在开启画面…':previewState.status==='active'?'关闭我的画面':'开启我的画面'}</button><button type="button" class="ghost iv-end-control" data-control="finish">结束面试</button></div>
+      <p class="iv-camera-status ${previewState.error||previewState.status==='error'?'is-error':''}" id="self-camera-status" role="status" aria-live="polite" ${previewMessage?'':'hidden'}>${esc(previewMessage)}</p>
       ${referencePanel(s,stage)}
     </div>
     <section class="iv-conversation" aria-label="当前面试对话"><div class="iv-question-card"><div class="iv-conversation-heading"><span class="iv-kicker">考官提问</span><span>${stage.language?.startsWith('en')?'ENGLISH':'中文'}</span></div><p class="iv-current-question" lang="${stage.language?.startsWith('en')?'en':'zh-CN'}">${esc(question?.content??'正在准备本题问题…')}</p></div>

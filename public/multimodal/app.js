@@ -12,6 +12,7 @@ let stream, source = null, objectUrl, sourceStart = 0, lastSent = -Infinity, las
 const options = () => ({enterSpeed: Number($('motionThreshold').value), exitSpeed: Number($('motionThreshold').value) * .55});
 let tracker = makeTracker(), active = null, sessions = [], latestHands = [], mediaRecorder;
 let frameTotal = 0, frameDetected = 0, frameTimes = [], sourceOperation = 0;
+let cameraRequest=null,cameraError='';
 let imu=null;
 let reportPanel=null;
 let hostContext=null;
@@ -152,7 +153,7 @@ async function refreshCameras() {
 }
 function closeSource() {
   if(active) stopRecording('source_closed');
-  generation++; stream?.getTracks().forEach(track=>track.stop()); stream=null; video.pause(); video.srcObject=null; video.removeAttribute('src'); video.load();
+  generation++; const previous=stream;stream=null;previous?.getTracks().forEach(track=>track.stop()); video.pause(); video.srcObject=null; video.removeAttribute('src'); video.load();
   if(objectUrl) URL.revokeObjectURL(objectUrl); objectUrl=null; source=null;
   video.hidden=true; $('sampleImage').hidden=true; $('empty').hidden=false; $('mediaBar').hidden=true; $('playPause').hidden=true; $('detectionBadge').hidden=true;$('stage').style.aspectRatio='16/9';
   $('sourceName').textContent='尚未连接'; $('sourceBadge').textContent='等待输入';$('clock').textContent='00:00.0'; resetTracking(); updateControls();
@@ -164,8 +165,15 @@ function showSource(type,name) {
   $('cameraTab').classList.toggle('active',type==='camera');$('sampleButton').classList.toggle('active',type==='image');document.querySelector('.file-label').classList.toggle('active',type==='video');
   sizeStage(); resetTracking(); updateControls();
 }
-async function startCamera() {
-  const op=++sourceOperation; closeSource();
+function cameraStream(){return source?.type==='camera'&&stream?.getVideoTracks().some(track=>track.readyState==='live')?stream:null;}
+function startCamera() {
+  if(cameraStream())return Promise.resolve(stream);
+  if(cameraRequest?.op===sourceOperation)return cameraRequest.promise;
+  const op=++sourceOperation;closeSource();cameraError='';
+  const promise=acquireCamera(op).finally(()=>{if(cameraRequest?.promise===promise)cameraRequest=null;});
+  cameraRequest={op,promise};return promise;
+}
+async function acquireCamera(op) {
   tell('正在请求摄像头权限，请在浏览器弹窗中允许。');
   try {
     if(!navigator.mediaDevices?.getUserMedia) throw new Error('请通过 http://localhost 或 http://127.0.0.1 打开，并使用桌面版 Chrome / Edge。');
@@ -173,10 +181,14 @@ async function startCamera() {
     const acquired=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},...(id?{deviceId:{exact:id}}:{})},audio:false});
     if(op!==sourceOperation) {acquired.getTracks().forEach(t=>t.stop());return;}
     stream=acquired; video.srcObject=stream; await video.play();
+    if(op!==sourceOperation){acquired.getTracks().forEach(t=>t.stop());return null;}
     sourceStart=performance.now(); showSource('camera',stream.getVideoTracks()[0]?.label||'实时摄像头');
-    await refreshCameras(); await loadModel();if(op!==sourceOperation)return;
+    for(const track of acquired.getVideoTracks())track.addEventListener('ended',()=>{if(stream!==acquired||source?.type!=='camera')return;++sourceOperation;closeSource();tell('摄像头连接已结束，可重新开启。',true);});
+    // Self preview is available immediately; tracking initialization never blocks it.
+    void refreshCameras();void loadModel().catch(()=>{});
     tell('摄像头已连接');
-  } catch(error) { if(op!==sourceOperation)return; closeSource(); const messages={NotAllowedError:'摄像头权限未获允许。请在地址栏的站点权限中允许摄像头后重试。',NotFoundError:'未找到摄像头。请连接设备，或先使用官方测试图与本地录像。',NotReadableError:'摄像头无法读取，可能正被会议或录屏软件占用。关闭占用程序后重试。'};tell(messages[error.name]||error.message,true); }
+    return acquired;
+  } catch(error) { if(op!==sourceOperation)return null;closeSource();const messages={NotAllowedError:'摄像头权限未获允许。请在地址栏的站点权限中允许摄像头后重试。',NotFoundError:'未找到摄像头。请连接设备，或先使用官方测试图与本地录像。',NotReadableError:'摄像头无法读取，可能正被会议或录屏软件占用。关闭占用程序后重试。'};cameraError=messages[error.name]||error.message;tell(cameraError,true);return null; }
 }
 async function useSample() {
   const op=++sourceOperation; closeSource();
@@ -336,10 +348,15 @@ showReport(false);
 requestAnimationFrame(loop);refreshCameras();updateControls();
 export const integration={
   current:()=>selectedSession(),
-  state:()=>({camera:source?.type==='camera',imu:!!imu?.isFresh,calibrated:!!imu?.baseline,modelReady:ready,recording:!!active}),
+  state:()=>({camera:!!cameraStream(),cameraError,imu:!!imu?.isFresh,calibrated:!!imu?.baseline,modelReady:ready,recording:!!active}),
   context(value){hostContext=value;const question=value?.questionId||'未标注题目';if($('questionId').value!==question){$('questionId').value=question;$('questionId').dispatchEvent(new Event('change'));}},
   start(){if(active)return true;if(source?.type==='video'&&video.ended)return false;if(!hostContext?.sessionId||!((ready&&source&&source.type!=='image')||imu?.isFresh))return false;startRecording();return !!active;},
   stop(){if(active)stopRecording('onstage_pause_or_finish');return true;},
-  camera:()=>source?.type==='camera'?closeSource():startCamera(),
+  camera:()=>source?.type==='camera'?integration.setCamera(false):integration.setCamera(true),
+  cameraStream,
+  async setCamera(enabled){
+    if(!enabled){++sourceOperation;closeSource();cameraError='';tell('摄像头已关闭。');return true;}
+    const opened=await startCamera();if(!opened||!cameraStream())throw Error(cameraError||'摄像头开启已取消。');return true;
+  },
   load(value){if(active)throw Error('请先暂停采集，再查看复盘');const data=validateImportedSession(value);const existing=sessions.find(s=>s.id===data.id);if(existing){const blob=existing.videoBlob;Object.assign(existing,data);if(blob)existing.videoBlob=blob;}else sessions.push(data);refreshSessions(data.id);renderReview();updateControls();showReport(false);}
 };
