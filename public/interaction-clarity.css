@@ -1,0 +1,13 @@
+.history-row-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+html[data-theme] .session-delete-button{background:transparent;color:var(--ui-danger,#b24a45);border:1px solid color-mix(in srgb,var(--ui-danger,#b24a45) 35%,var(--line));font-size:12px;white-space:nowrap;box-shadow:none}
+html[data-theme] .session-delete-button:hover{background:color-mix(in srgb,var(--ui-danger,#b24a45) 6%,var(--ui-surface));border-color:var(--ui-danger,#b24a45)}
+.session-delete-meta{margin:18px 0 20px;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--ux-soft)}
+.session-delete-meta>div{display:grid;grid-template-columns:76px minmax(0,1fr);gap:12px;font-size:13px;line-height:1.8;padding:4px 0}
+.session-delete-meta dt{color:var(--muted)}.session-delete-meta dd{margin:0;color:var(--ink);overflow-wrap:anywhere}
+.session-delete-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.session-delete-actions button{min-height:44px;padding:10px 16px;font-size:13px}
+html[data-theme] .session-delete-confirm{color:#fff;background:#b14b43;border:1px solid #b14b43;box-shadow:none}
+html[data-theme] .session-delete-confirm:hover{background:#9d3b35;border-color:#9d3b35}
+.session-delete-error{color:var(--ui-danger,#b24a45);font-size:13px;line-height:1.7;margin:12px 0 16px}
+.iv-confirm-dialog [hidden]{display:none!important}
+@media(max-width:500px){.session-delete-actions{flex-direction:column}.session-delete-actions button{width:100%}.session-delete-meta>div{grid-template-columns:64px minmax(0,1fr);gap:8px}.history-row-actions{gap:7px}}

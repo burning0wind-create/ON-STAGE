@@ -44,8 +44,9 @@ export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=
       const captureRoute=route.match(/^\/api\/sessions\/([a-zA-Z0-9_-]+)\/multimodal(?:\/([a-zA-Z0-9_-]+))?$/);
       if(captureRoute){
         const [,sid,key]=captureRoute;
+        app.get(sid);
         if(req.method==='GET')return json(res,key?getCapture(store,sid,key):(app.get(sid).multimodal||[]));
-        if(req.method==='POST'&&!key){if(app.busy.has(sid))fail('本场正在保存回答，请稍后重试采集保存',409);let data;try{data=JSON.parse((await body(req,64*1024*1024)).toString('utf8'));}catch(e){if(e.status)throw e;fail('多模态JSON格式无效');}if(app.busy.has(sid))fail('本场正在保存回答，请稍后重试采集保存',409);return json(res,attachCapture(store,sid,data),201);}
+        if(req.method==='POST'&&!key){if(app.busy.has(sid))fail('本场正在保存回答，请稍后重试采集保存',409);let data;try{data=JSON.parse((await body(req,64*1024*1024)).toString('utf8'));}catch(e){if(e.status)throw e;fail('多模态JSON格式无效');}app.get(sid);if(app.busy.has(sid))fail('本场正在保存回答，请稍后重试采集保存',409);return json(res,attachCapture(store,sid,data),201);}
       }
       if(route==='/api/config'&&req.method==='GET') return json(res,{name:'ON STAGE',scoringVersion:SCORING_VERSION,mode:llm?'llm':'demo',searchConfigured:!!env.SEARCH_API_KEY,templates:TEMPLATE_SEEDS,stages:STAGES,dimensions:DIMENSIONS});
       if(route==='/api/model-settings'&&req.method==='GET')return json(res,modelSettings(runtimeEnv));
@@ -84,11 +85,12 @@ export function createServer({store=new Store(process.env.DATA_DIR||'data'),llm=
       if(route==='/api/profiles'&&req.method==='POST') return json(res,app.profile(await input(req)),201);
       if(route==='/api/profiles'&&req.method==='GET') return json(res,store.list('profiles'));
       if(route==='/api/sessions'&&req.method==='POST') return json(res,await app.start((await input(req)).profileId),201);
-      if(route==='/api/sessions'&&req.method==='GET') return json(res,store.list('sessions').sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(({materials,sources,plan,turns,sensors,...s})=>s));
+      if(route==='/api/sessions'&&req.method==='GET') return json(res,app.listSessions().sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).map(({materials,sources,plan,turns,sensors,...s})=>s));
       const match=route.match(/^\/api\/sessions\/([a-zA-Z0-9_-]+)(?:\/(answer|action|sensors|export|improvements))?$/);
       if(match) {
         const [,sid,action]=match;
         if(!action&&req.method==='GET') return json(res,app.get(sid));
+        if(!action&&req.method==='DELETE'){if(!req.headers['content-type']?.startsWith('application/json'))fail('请使用 JSON 请求',415);return json(res,await app.deleteSession(sid,await input(req)));}
         if(action==='answer'&&req.method==='POST'){const data=await input(req);return json(res,await (app.get(sid).scoringPolicy?app.submitAnswer(sid,data):app.answer(sid,data)),202);}
         if(action==='action'&&req.method==='POST'){const {action:control}=await input(req);return json(res,await (control==='retry-scores'?app.retryQueued(sid):control==='finish'&&app.get(sid).scoringPolicy?app.finishQueued(sid):app.advance(sid,control)));}
         if(action==='sensors'&&req.method==='POST') return json(res,app.sensors(sid,(await input(req)).events));

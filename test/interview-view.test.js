@@ -1,9 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderInterview,compactInterviewProgress,updateInterviewVoice,renderSelfCamera,updateSelfCamera} from '../public/interview-view.js';
+import {renderInterview,compactInterviewProgress,updateInterviewVoice,renderSelfCamera,updateSelfCamera,answerControlState} from '../public/interview-view.js';
 
 const stages=[{id:'english',name:'英语问答',language:'en',minutes:5},{id:'portfolio',name:'作品集答辩',language:'zh-CN',minutes:8},{id:'design',name:'设计专业问答',language:'zh-CN',minutes:5},{id:'ethics',name:'综合素质与设计伦理',language:'zh-CN',minutes:3}];
 const session=()=>({id:'s1',status:'active',stageIndex:1,profile:{stages,year:2027,admissionType:'推免面试'},turns:[{id:'q1',role:'interviewer',stageId:'english',content:'Tell us about your project.'},{id:'a1',role:'candidate',stageId:'english',content:'My project.',scoring:{status:'complete'}},{id:'q2',role:'interviewer',stageId:'portfolio',content:'说明作品的研究依据。'}],materials:[],warnings:[]});
+
+test('开始与继续回答使用不同文案和动作，停听与识别错误都保留明确的继续入口',()=>{
+  const first=answerControlState();assert.equal(first.startLabel,'开始语音回答');assert.equal(first.startAction,'voice-start');
+  for(const context of [{speechConsent:true},{draft:'已有内容'},{hasSpeech:true},{phase:'error'},{interimText:'补充片段'}]){
+    const control=answerControlState(context);assert.equal(control.startLabel,'继续回答');assert.equal(control.startAction,'voice-toggle');assert.equal(control.showStart,true);assert.equal(control.showToggle,false);
+    const html=renderInterview(session(),{speechConsent:!!context.speechConsent,answerDraft:context.draft??'',voiceState:{phase:context.phase??'ready',...context}});
+    assert.match(html,/data-action="voice-toggle" id="voice-start"  >继续回答/);assert.match(html,/已有内容保留/);assert.doesNotMatch(html,/开启语音面试|继续语音回答/);
+  }
+  const listening=answerControlState({phase:'listening',speechConsent:true});assert.equal(listening.showStart,false);assert.equal(listening.showToggle,true);assert.equal(listening.toggleLabel,'暂停回答');assert.equal(listening.status,'正在聆听，可以直接继续说');
+  const paused=renderInterview({...session(),status:'paused'},{speechConsent:true});assert.match(paused,/id="voice-start"  disabled>继续回答/);
+  const unsupported=answerControlState({recognitionSupported:false});assert.match(unsupported.hint,/文字辅助/);
+});
 
 test('环节进度突出当前步骤，按实际问题计数且不以评分代替面试进度',()=>{
   const html=renderInterview(session());
@@ -21,7 +33,7 @@ test('语音是主要入口，文字辅助保留合法表单、转写节点和�
   assert.match(html,/id="answer-form"/);assert.match(html,/textarea[^>]*name="answer"[^>]*maxlength="20000"/);
   assert.match(html,/id="text-assist" data-text-assist >/);assert.match(html,/id="voice-final">我的回答/);assert.match(html,/iv-interim">补充中/);
   assert.match(html,/type="button" class="primary iv-answer-complete" data-action="voice-complete"/);
-  assert.match(html,/确认后保存回答，进入下一环节/);assert.match(html,/音频可能由浏览器语音服务商处理/);
+  assert.match(html,/回答完毕后，确认提交才进入下一环节/);assert.match(html,/音频可能由浏览器语音服务商处理/);
   assert.doesNotMatch(html,/<textarea[^>]*required/);
 });
 
@@ -51,9 +63,9 @@ test('过渡态阻止重复提交，收音连接可取消；部分结果不在�
   assert.match(html,/id="voice-final">最终句子<\/span><span id="voice-interim" class="iv-interim">临时句子/);
   assert.doesNotMatch(html,/id="voice-final">最终句子 临时句子/);
   const processing=renderInterview(s,{answerDraft:'已回答',voiceState:{phase:'processing'}});
-  assert.match(processing,/data-voice-lock disabled>保存文字/);assert.match(processing,/data-control="skip" data-voice-lock disabled/);
+  assert.match(processing,/data-voice-lock disabled>完成本题，确认提交/);assert.match(processing,/data-control="skip" data-voice-lock disabled/);
   const connecting=renderInterview(s,{voiceState:{phase:'connecting'}});assert.match(connecting,/id="voice-toggle"  >取消连接/);
-  for(const phase of ['ready','error']){const ready=renderInterview(s,{answerDraft:'继续内容',voiceState:{phase}});assert.match(ready,/id="voice-start"  >继续语音回答/);assert.match(ready,/id="voice-toggle" hidden/);}
+  for(const phase of ['ready','error']){const ready=renderInterview(s,{answerDraft:'继续内容',voiceState:{phase}});assert.match(ready,/id="voice-start"  >继续回答/);assert.match(ready,/id="voice-toggle" hidden/);}
   const full='长'.repeat(20001)+'完整末尾';const long=renderInterview(s,{answerDraft:full});assert.ok(long.includes(full+'</textarea>'));assert.match(long,/内容已完整保留/);assert.match(long,/id="voice-complete" disabled/);assert.match(long,/id="text-assist" data-text-assist open/);
 });
 
@@ -68,7 +80,7 @@ test('暂停和已回答恢复入口不创建新答案；最后一个环节明�
   assert.match(paused,/data-voice-phase="paused"/);assert.match(paused,/data-control="resume"/);assert.match(paused,/id="voice-complete" disabled/);
   s.status='active';s.turns.push({id:'a2',role:'candidate',stageId:'portfolio',content:'已保存'});
   const answered=renderInterview(s);assert.match(answered,/回答已保存/);assert.match(answered,/data-control="next"/);assert.match(answered,/data-control="followup"/);assert.doesNotMatch(answered,/id="answer-form"/);
-  s.turns.pop();s.stageIndex=3;assert.match(renderInterview(s),/确认后保存回答，生成本场复盘/);
+  s.turns.pop();s.stageIndex=3;assert.match(renderInterview(s),/回答完毕后，确认提交才生成本场复盘/);
 });
 
 test('动态标签、回答、材料与提示全部转义；音频状态更新不替换输入节点',()=>{
@@ -80,7 +92,7 @@ test('动态标签、回答、材料与提示全部转义；音频状态更新�
   const scene={dataset:{}};const root={querySelector:id=>nodes[id]??null,querySelectorAll:()=>[scene]};
   updateInterviewVoice(root,{phase:'processing',finalText:'不覆盖输入框'},{speechConsent:true});
   assert.equal(textarea.value,'保留光标与内容');assert.equal(scene.dataset.voicePhase,'processing');assert.equal(nodes['#voice-complete'].disabled,true);assert.equal(nodes['#voice-repeat'].disabled,true);
-  updateInterviewVoice(root,{phase:'listening'},{speechConsent:true});assert.equal(nodes['#voice-toggle'].textContent,'暂停收音');assert.equal(nodes['#voice-complete'].disabled,false);assert.equal(nodes['#speech-consent'].checked,true);
+  updateInterviewVoice(root,{phase:'listening'},{speechConsent:true});assert.equal(nodes['#voice-toggle'].textContent,'暂停回答');assert.equal(nodes['#voice-complete'].disabled,false);assert.equal(nodes['#speech-consent'].checked,true);
   updateInterviewVoice(root,{phase:'ready'},{speechConsent:true});assert.equal(nodes['#voice-toggle'].hidden,true);assert.equal(nodes['#voice-start'].hidden,false);
 });
 

@@ -37,7 +37,7 @@ export class OnStage {
     if(this.busy.has(key)) fail('正在生成本场计划，请稍候',409);
     this.busy.add(key);
     try {
-      const existing=this.store.list('sessions').find(s=>s.cacheKey===key);
+      const existing=this.store.list('sessions').find(s=>s.status!=='deleted'&&!s.deletedAt&&s.cacheKey===key);
       if(existing) fail('此场身份已创建，请继续该场，或修改面试时间／模拟次数',409);
       const materials=profile.materialIds.map(id=>this.store.get('materials',id));
       const fingerprint=hash({profile,materials:materials.map(m=>m.hash)});
@@ -56,7 +56,17 @@ export class OnStage {
       return this.save(session);
     } finally {this.busy.delete(key);}
   }
-  get(id) {return this.store.get('sessions',id)??fail('面试不存在',404);}
+  get(id) {const session=this.store.get('sessions',id);if(!session||session.status==='deleted'||session.deletedAt)fail('面试不存在',404);return session;}
+  listSessions(){return this.store.list('sessions').filter(s=>s.status!=='deleted'&&!s.deletedAt);}
+  async deleteSession(sid,input={}){
+    if(input?.confirm!==true)fail('请在确认窗口中确认删除此面试记录');
+    return this.exclusive(sid,async s=>{
+      if(s.status!=='complete')fail('仅支持删除已完成的面试记录',409);
+      if(this.jobs.has(sid)||s.scoringJob?.status==='running')fail('本场正在后台评分，请待评分完成后删除',409);
+      this.save({...s,status:'deleted',deletedAt:new Date().toISOString(),previousStatus:s.status});
+      return {deleted:true,id:sid,recoverable:true};
+    });
+  }
   save(s) {return this.store.put('sessions',s.id,s);}
   addOpening(s) {
     const stage=s.profile.stages[s.stageIndex];
@@ -114,7 +124,7 @@ export class OnStage {
         if(s.scoringPolicy&&this.llm)await this.retryScores(s,false);
         await this.scoreOfficial(s);
         s.activeMs+=Date.now()-Date.parse(s.lastResumedAt);s.status='complete';s.completedAt=new Date().toISOString();
-        s.report=buildReport(s,this.store.list('sessions'));
+        s.report=buildReport(s,this.listSessions());
         s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);
       } else fail('不支持的面试操作');
       return this.save(s);
@@ -129,7 +139,7 @@ export class OnStage {
     });this.startScoring(sid);return this.get(sid);
   }
   async finishQueued(sid){
-    const saved=await this.exclusive(sid,async s=>{if(s.status!=='active')fail('请先恢复面试');s.activeMs+=Date.now()-Date.parse(s.lastResumedAt);s.status='complete';s.completedAt=new Date().toISOString();s.report=buildReport(s,this.store.list('sessions'));s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);return this.save(s);});
+    const saved=await this.exclusive(sid,async s=>{if(s.status!=='active')fail('请先恢复面试');s.activeMs+=Date.now()-Date.parse(s.lastResumedAt);s.status='complete';s.completedAt=new Date().toISOString();s.report=buildReport(s,this.listSessions());s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);return this.save(s);});
     this.startScoring(sid);return saved;
   }
   async retryQueued(sid){
@@ -138,7 +148,7 @@ export class OnStage {
       this.store.put('score-revisions',id(),{sessionId:s.id,savedAt:new Date().toISOString(),snapshot:structuredClone(s)});
       s.scoringPolicy??=scoringPolicy(s.profile.stages);s.rubricHash=hash([s.profile.rulesText,s.profile.rubricText,s.profile.officialRubric,s.rubric,s.profile.stages,s.scoringPolicy]);
       for(const t of s.turns.filter(t=>t.role==='candidate'&&!t.skipped)){const q=s.turns.find(q=>q.id===t.questionId);if(scoreProgress(t,s.rubric,q).status!=='complete')t.scoring={...t.scoring,status:'pending'};}
-      if(s.status==='complete')s.report=buildReport(s,this.store.list('sessions'));return this.save(s);
+      if(s.status==='complete')s.report=buildReport(s,this.listSessions());return this.save(s);
     });this.startScoring(sid);return saved;
   }
   startScoring(sid){
@@ -152,16 +162,16 @@ export class OnStage {
         q.scoringTargets??=questionTargets(s.rubric,q.stageId);t.scoring={...t.scoring,status:'running',startedAt:new Date().toISOString()};this.save(s);
         let result;try{result=await evaluateCore(this.llm,s,{...q,responseId:t.id},t.content,t.evaluation);}catch(error){result={...t.evaluation,mode:'unavailable',scoring:{status:'pending',diagnostics:[diagnose(error)]}};}
         s=this.get(sid);const actual=s.turns.find(x=>x.id===t.id);actual.evaluation=result;actual.scoring={...result.scoring,history:[...(actual.scoring?.history??[]),...(actual.scoring?.diagnostics??[])].slice(-50),completedAt:new Date().toISOString()};
-        if(s.status==='complete'){s.report=buildReport(s,this.store.list('sessions'));s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);s.report.revisedAt=new Date().toISOString();}this.save(s);
+        if(s.status==='complete'){s.report=buildReport(s,this.listSessions());s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);s.report.revisedAt=new Date().toISOString();}this.save(s);
       }
       let snapshot=this.get(sid);
       if(snapshot.status==='complete'&&snapshot.profile.officialRubric&&snapshot.official?.status!=='assessed'){
-        await this.scoreOfficial(snapshot);const latest=this.get(sid);latest.official=snapshot.official;latest.report=buildReport(latest,this.store.list('sessions'));latest.report.multimodalEvaluation=summarizeAuxiliaryCaptures(latest.multimodal);latest.report.revisedAt=new Date().toISOString();this.save(latest);
+        await this.scoreOfficial(snapshot);const latest=this.get(sid);latest.official=snapshot.official;latest.report=buildReport(latest,this.listSessions());latest.report.multimodalEvaluation=summarizeAuxiliaryCaptures(latest.multimodal);latest.report.revisedAt=new Date().toISOString();this.save(latest);
       }
     }).catch(error=>{const s=this.get(sid);s.scoringError=diagnose(error);this.save(s);}).finally(()=>{this.jobs.delete(sid);const s=this.get(sid);s.scoringJob={...s.scoringJob,status:'idle',completedAt:new Date().toISOString()};this.save(s);});
     this.jobs.set(sid,job);
   }
-  recoverScoring(){for(const s of this.store.list('sessions'))if(s.scoringPolicy&&(s.scoringJob?.status==='running'||s.turns.some(t=>t.scoring?.status==='running'||t.scoring?.status==='pending'))){for(const t of s.turns)if(t.scoring?.status==='running')t.scoring.status='pending';this.save(s);this.startScoring(s.id);}}
+  recoverScoring(){for(const s of this.listSessions())if(s.scoringPolicy&&(s.scoringJob?.status==='running'||s.turns.some(t=>t.scoring?.status==='running'||t.scoring?.status==='pending'))){for(const t of s.turns)if(t.scoring?.status==='running')t.scoring.status='pending';this.save(s);this.startScoring(s.id);}}
   async scoreTurn(s,turn){
     const question=s.turns.find(q=>q.id===turn.questionId&&q.role==='interviewer');
     if(!question){turn.scoring={status:'pending',diagnostics:[diagnose(Error('Question missing'))]};return this.save(s);}
@@ -186,7 +196,7 @@ export class OnStage {
       const q=s.turns.find(q=>q.id===turn.questionId);
       if(scoreProgress(turn,s.rubric,q).status!=='complete')await this.scoreTurn(s,turn);
     }
-    if(backup){await this.scoreOfficial(s);if(s.status==='complete'){s.report=buildReport(s,this.store.list('sessions'));s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);s.report.revisedAt=new Date().toISOString();}}
+    if(backup){await this.scoreOfficial(s);if(s.status==='complete'){s.report=buildReport(s,this.listSessions());s.report.multimodalEvaluation=summarizeAuxiliaryCaptures(s.multimodal);s.report.revisedAt=new Date().toISOString();}}
     return this.save(s);
   }
   sensors(sid,events) {

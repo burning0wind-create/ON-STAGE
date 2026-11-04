@@ -3,6 +3,8 @@ import {VoiceInterview} from './voice-interview.js';
 import {renderInterview,compactInterviewProgress,updateInterviewVoice,updateSelfCamera} from './interview-view.js';
 import {SelfCamera} from './self-camera.js';
 import {completeInterviewAnswer} from './interview-completion.js';
+import {AnswerConfirmation} from './answer-confirmation.js';
+import {renderDeleteButton,renderDeleteConfirmation} from './session-actions.js';
 import {renderAnswerReview} from './answer-review.js';
 import {stageReviewId,revealReviewTarget,captureReportReading,restoreReportReading} from './report-navigation.js';
 import {scoringPanel} from './scoring-ui.js';
@@ -28,9 +30,10 @@ let voiceState={phase:'idle',finalText:'',interimText:''},completionIntent=false
 const voice=new VoiceInterview({
   onState:state=>{voiceState=state;if(state.phase==='listening'&&!speechStarted)speechStarted=Date.now();updateVoiceUI();},
   onTranscript:state=>{answerDraft=state.text;const box=$('#answer-form textarea');if(box)box.value=answerDraft;updateVoiceUI();},
-  onSilencePrompt:()=>showVoiceConfirmation(),
+  onSilencePrompt:()=>{if(!busy&&!completionIntent)answerConfirmation.open('silence').catch(e=>toast(e.message));},
   onError:error=>toast(typeof error==='string'?error:error?.message??'语音暂不可用，可重试或使用文字辅助。')
 });
+const answerConfirmation=new AnswerConfirmation({voice,getContext:()=>({sessionId:current?.id,questionId:current?.turns?.at(-1)?.role==='interviewer'?current.turns.at(-1).id:null,active:page==='interview'&&current?.status==='active',consent:speechConsent,finalStage:current?.stageIndex>=((current?.profile?.stages?.length??1)-1)}),onShow:showVoiceConfirmation,onHide:()=>{const dialog=$('#voice-silence-dialog');if(dialog?.open)dialog.close();},onSubmit:()=>submitSpokenAnswer(),onError:toast});
 async function api(url,options={}) {
   const res=await fetch(url,{...options,headers:options.body instanceof FormData?{}:{'Content-Type':'application/json',...options.headers}});
   const data=await res.json();if(!res.ok)throw new Error(data.error||'操作未完成');return data;
@@ -79,7 +82,7 @@ function catalogNote(){
   const c=p.catalog;
   return `<div class="help"><strong>${esc(targetLabel({...draft,college:s.college.name,major:p.name,majorCode:p.code}))}</strong><br>${esc(c.label)} / 核对日期 ${esc(c.checkedAt)}${Number(c.year)!==Number(draft.year)?`<br>当前目标为 ${esc(draft.year)} 年，参考资料年份为 ${c.year}，需另核对目标年度细则。`:''}${c.admissionTypes.length&&!c.admissionTypes.includes(draft.admissionType)?'<br>当前招生类型不在这份目录的已核对范围内，请确认适用性。':''}<br><a href="${esc(safeURL(c.url))}" target="_blank" rel="noopener noreferrer">查看官网来源 ↗</a>${(p.sources??[]).filter(x=>x.url!==c.url).map(x=>` / <a href="${esc(safeURL(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.label)} ↗</a>`).join('')}${p.scopeNote?'<br>'+esc(p.scopeNote):''}</div><p class="page-note">专业与方向目录不代替院校的面试细则和评分标准，仍需为本次目标上传确认。</p>`;
 }
-function sessionRows(list){return list.length?`<div class="scroll-table"><table class="session-table"><thead><tr><th>院校 / 专业</th><th>面试时间</th><th>次数</th><th>状态</th><th>操作</th></tr></thead><tbody>${list.map(s=>`<tr><td>${esc(s.profile.school)}<br><span class="subtle">${esc([s.profile.college,s.profile.majorCode,s.profile.major,s.profile.direction].filter(Boolean).join(' / '))} / ${esc(s.profile.nickname)}</span></td><td>${esc(s.profile.interviewTime.replace('T',' '))}</td><td>第 ${s.profile.attempt} 次</td><td>${badge(s.status==='complete'?'已完成':s.status==='paused'?'已暂停':'进行中',s.status==='complete'?'green':'')}</td><td><button class="small secondary" data-session="${s.id}">${s.status==='complete'?'查看复盘':'继续面试'}</button></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">暂无练习记录</div>';}
+function sessionRows(list){return list.length?`<div class="scroll-table"><table class="session-table"><thead><tr><th>院校 / 专业</th><th>面试时间</th><th>次数</th><th>状态</th><th>操作</th></tr></thead><tbody>${list.map(s=>`<tr><td>${esc(s.profile.school)}<br><span class="subtle">${esc([s.profile.college,s.profile.majorCode,s.profile.major,s.profile.direction].filter(Boolean).join(' / '))} / ${esc(s.profile.nickname)}</span></td><td>${esc(s.profile.interviewTime.replace('T',' '))}</td><td>第 ${s.profile.attempt} 次</td><td>${badge(s.status==='complete'?'已完成':s.status==='paused'?'已暂停':'进行中',s.status==='complete'?'green':'')}</td><td><div class="history-row-actions"><button class="small secondary" data-session="${s.id}">${s.status==='complete'?'查看复盘':'继续面试'}</button>${page==='reports'?renderDeleteButton(s,{compact:true}):''}</div></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">暂无练习记录</div>';}
 function home(){
   const recent=sessions.find(s=>s.status==='complete');
   const finished=sessions.filter(s=>s.status==='complete');
@@ -112,7 +115,7 @@ function legacyReports(){
   const s=current?.report?current:null;
   if(!s)return heading('面试结果','')+`<section class="card">${sessionRows(sessions.filter(s=>s.status==='complete'))}</section>`;
   const r=s.report;
-  return heading('面试结果',`${esc(s.profile.school)} / ${esc([s.profile.college,s.profile.majorCode,s.profile.major,s.profile.direction].filter(Boolean).join(' / '))} / ${esc(s.profile.nickname)} / 第 ${s.profile.attempt} 次`,`<div class="actions"><a class="button secondary small" href="/api/sessions/${s.id}/export?format=md" title="Markdown 文本报告">导出报告</a><a class="button secondary small" href="/api/sessions/${s.id}/export" title="JSON 原始数据">导出数据</a></div>`)+
+  return heading('面试结果',`${esc(s.profile.school)} / ${esc([s.profile.college,s.profile.majorCode,s.profile.major,s.profile.direction].filter(Boolean).join(' / '))} / ${esc(s.profile.nickname)} / 第 ${s.profile.attempt} 次`,`<div class="actions"><button class="secondary small" data-action="report-history">全部记录</button>${renderDeleteButton(s)}<a class="button secondary small" href="/api/sessions/${s.id}/export?format=md" title="Markdown 文本报告">导出报告</a><a class="button secondary small" href="/api/sessions/${s.id}/export" title="JSON 原始数据">导出数据</a></div>`)+
   `<div class="stats"><section class="card"><span class="subtle">六维训练反馈 / 100</span><strong>${number(r.trainingTotal)}</strong><span class="subtle">${r.coverage.assessed} / ${r.coverage.total} 个维度有评分证据</span></section><section class="card"><span class="subtle">按院校标准的练习分 / 100</span><strong>${number(r.official.total)}</strong><span class="subtle">${esc(r.official.note||'暂无院校评分')}</span></section><section class="card"><span class="subtle">本场完成</span><strong>${r.coverage.answered} <small>题</small></strong><span class="subtle">覆盖 ${r.coverage.stageIds.length} / ${s.profile.stages.length} 个环节 / ${s.mode==='demo'?'流程演示':'模型评价'}</span></section></div><div class="grid two"><section class="card"><h2>训练维度</h2>${r.dimensions.map(d=>`<div class="bar-item"><div class="bar-label"><span>${d.name}</span><span>${number(d.score,' / 5')}</span></div>${hasScore(d.score)?`<div class="bar"><div class="bar-fill" data-width="${d.score*20}"></div></div>`:'<div class="no-score-track">尚无评分证据</div>'}</div>`).join('')}<p class="page-note">${esc(r.note)}</p></section><section class="card"><h2>与上次可比练习对照</h2>${r.comparison?`<p class="subtle">对比第 ${r.comparison.attempt} 次，院校专业、招生类型、评分版本与环节一致。</p>${r.comparison.items.map(x=>`<div class="bar-label"><span>${x.name}</span><span>${x.change===null?'证据不足':`${x.change>0?'+':''}${x.change}`}</span></div>`).join('')}`:'<div class="empty">暂时没有同一评分标准下的可比记录。</div>'}<h3>下次重点</h3>${r.improvements.length?r.improvements.map((x,i)=>`<label class="checkline"><input type="checkbox" data-improvement="${i}" ${x.checked ? "checked" : ""}><span>${esc(x.dimension)}：${esc(x.suggestion)}</span></label>`).join(''):'<p class="subtle">取得内容评分后，会生成基于回答证据的改进清单。</p>'}</section></div><section class="card form-section"><h2>采集状态</h2><div class="sensor-grid">${r.sensorSummary.map(x=>`<div class="sensor-cell"><strong>${sensorNames[x.channel]}</strong><span class="subtle">${x.count?`${x.count} 条状态事件`:'未采集'}</span></div>`).join('')}</div><p class="page-note">设备状态不参与专业得分。手部与姿态复盘见下方采集报告，动作观察不参与专业得分。</p></section><section class="card"><h2>问答回看</h2>${s.turns.filter(t=>t.role==='candidate').map((t,i)=>`<article class="evidence"><h3>${i+1}. ${esc(s.turns.find(q=>q.id===t.questionId)?.content)}</h3><blockquote>${esc(t.content)}</blockquote><p>${esc(t.evaluation.feedback)}</p>${t.evaluation.dimensions.filter(d=>d.score!==null).map(d=>`<details><summary>${esc(d.name)} / ${d.score} / 5</summary><blockquote>${esc(d.quote)}</blockquote><p>${esc(d.reason)}</p><p>改进：${esc(d.improvement)}</p></details>`).join('')}</article>`).join('')||'<p class="subtle">本场尚未作答</p>'}</section>${r.official.items?.length?`<section class="card"><h2>院校评分依据</h2>${r.official.items.map(d=>`<article class="evidence"><h3>${esc(d.name)} / ${d.weight}% / ${number(d.score)}</h3><blockquote>${esc(d.quote)}</blockquote><p>${esc(d.reason)}</p></article>`).join('')}</section>`:''}<div class="form-actions"><button class="secondary" data-action="new-attempt">按此院校再练一次 →</button></div>`;
 }
 function evidenceDimensionCards(dimensions){
@@ -135,7 +138,7 @@ function reports(){
   const ledger=Array.isArray(r.evidenceLedger)?r.evidenceLedger:dimensions.flatMap(d=>(d.evidence??[]).map(e=>({...e,name:d.name,dimensionId:d.id,group:'professional'})));
   const quoted=ledger.filter(e=>e.quote),pending=ledger.filter(e=>!e.quote),assessment=r.assessmentStatus??(hasScore(r.trainingTotal)?'complete':'partial');
   const statusLabel={complete:r.performance?'本场作答评分已完成':'已有完整训练结论',partial:'当前为部分结论',unassessed:'本场尚未形成完整评价',assisted_practice:'辅助练习记录',legacy:'旧版记录'}[assessment]??'当前为部分结论';
-  return heading('面试结果',esc(targetLabel(s.profile))+' / '+esc(s.profile.nickname)+' / 第 '+s.profile.attempt+' 次','<div class="actions"><a class="button primary report-export-main" href="/api/sessions/'+s.id+'/export?format=md" title="Markdown 文本报告">导出报告</a><a class="button secondary report-export-data" href="/api/sessions/'+s.id+'/export" title="JSON 原始数据">导出数据</a></div>')+
+  return heading('面试结果',esc(targetLabel(s.profile))+' / '+esc(s.profile.nickname)+' / 第 '+s.profile.attempt+' 次','<div class="actions"><button class="secondary" data-action="report-history">全部记录</button>'+renderDeleteButton(s)+'<a class="button primary report-export-main" href="/api/sessions/'+s.id+'/export?format=md" title="Markdown 文本报告">导出报告</a><a class="button secondary report-export-data" href="/api/sessions/'+s.id+'/export" title="JSON 原始数据">导出数据</a></div>')+
   (s.contentRegrade?'<p class="page-note">补评来源：'+esc(s.contentRegrade.sourceLabel||s.contentRegrade.method)+'。'+esc(s.contentRegrade.limitations||'')+'</p>':'')+
   reportDashboard(s)+scoringPanel(s)+
   '<section class="card coverage-panel" id="coverage-panel"><div class="report-section-heading"><div><p class="eyebrow">WHAT WAS OBSERVED</p><h2>考察覆盖</h2></div>'+badge(s.contentRegrade?.method==='assistant_rubric_review'?'量表补评':s.mode==='demo'?'流程演示 / 暂不评分':s.mode==='llm'?'模型评价':'本场记录')+'</div><div class="coverage-metrics"><div><strong>'+countValue(coverage.assessed)+'<small> / '+(coverage.total??dimensions.length)+'</small></strong><span>已评价维度</span></div><div><strong>'+countValue(coverage.partial)+'</strong><span>部分观察</span></div><div><strong>'+countValue(coverage.unassessed)+'</strong><span>待补证据</span></div><div><strong>'+countValue(coverage.answered)+'</strong><span>已回答题目</span></div></div><p class="page-note">本场覆盖 '+(coverage.stageIds??[]).map(id=>esc(config.stages.find(st=>st.id===id)?.name??id)).join('、')+'。重复回答不会增加独立证据；错误是回答质量判断，不会与“未考察”混淆。</p></section>'+
@@ -195,13 +198,42 @@ function syncVoice(){
 async function stopSpeech(){answerDraft=await voice.stop();return answerDraft;}
 function updateCameraPreview(){if(page!=='interview')return;const root=$('#interview-experience');if(!root)return;updateSelfCamera(root,selfCamera.state);selfCamera.bind($('#self-camera-video'));}
 async function toggleCamera(){if(page==='interview'){if(selfCamera.state.status==='active')await selfCamera.close();else await selfCamera.open();}else await multimodal.camera();}
-function closeVoiceConfirmation(){const dialog=document.getElementById('voice-silence-dialog');if(dialog?.open)dialog.close();}
-function showVoiceConfirmation(){
-  if(page!=='interview'||current?.status!=='active'||busy||completionIntent)return;
+function closeVoiceConfirmation(){answerConfirmation.dismiss();}
+let deletingSession=false;
+function showDeleteConfirmation(id){
+  const session=sessions.find(s=>s.id===id);if(session?.status!=='complete')return;
+  let dialog=$('#delete-session-dialog');
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='delete-session-dialog';dialog.className='iv-confirm-dialog session-delete-dialog';dialog.setAttribute('aria-labelledby','delete-session-title');dialog.setAttribute('aria-describedby','delete-session-description');dialog.addEventListener('cancel',event=>{if(deletingSession)event.preventDefault();});document.body.append(dialog);}
+  dialog.dataset.sessionId=id;dialog.innerHTML=renderDeleteConfirmation(session);if(!dialog.open)dialog.showModal();dialog.querySelector('[data-delete-cancel]')?.focus();
+}
+async function deleteConfirmedSession(id){
+  const dialog=$('#delete-session-dialog');if(deletingSession||!dialog?.open||dialog.dataset.sessionId!==id)return;
+  deletingSession=true;dialog.querySelectorAll('button').forEach(button=>button.disabled=true);
+  try{
+    await api('/api/sessions/'+encodeURIComponent(id),{method:'DELETE',body:JSON.stringify({confirm:true})});
+    sessions=sessions.filter(session=>session.id!==id);
+    if(current?.id===id){current=null;localStorage.removeItem('onstage.active');}
+    dialog.close();render();toast('记录已从历史列表移除，保留本地恢复备份。');
+    try{await refresh();render();}catch{toast('记录已移除，列表刷新暂未完成，可稍后刷新页面。');}
+  }catch(error){const message=$('#delete-session-error');message.textContent=error.message;message.hidden=false;}
+  finally{deletingSession=false;dialog.querySelectorAll('button').forEach(button=>button.disabled=false);}
+}
+async function continueReviewedAnswer(){
+  await answerConfirmation.continue();
+  if(page!=='interview')return;
+  if(!speechConsent||!voice.state.recognitionSupported){const assist=$('#text-assist');if(assist)assist.open=true;$('#answer-form textarea')?.focus();}
+  else{const start=$('#voice-start'),toggle=$('#voice-toggle');(toggle&&!toggle.hidden?toggle:start)?.focus();}
+}
+function showVoiceConfirmation(review){
+  if(page!=='interview'||current?.status!=='active'||busy||completionIntent)return false;
   let dialog=document.getElementById('voice-silence-dialog');
-  if(!dialog){dialog=document.createElement('dialog');dialog.id='voice-silence-dialog';dialog.className='iv-confirm-dialog';dialog.setAttribute('aria-labelledby','silence-title');dialog.innerHTML='<div class="iv-confirm-icon" aria-hidden="true">✓</div><h2 id="silence-title">这道题，回答完了吗？</h2><p>有一段时间没有新的语音。已识别的内容会保留，由你决定何时结束。</p><div class="iv-confirm-preview" id="voice-silence-preview"></div><div class="actions"><button type="button" class="secondary" data-action="voice-continue">我还想补充</button><button type="button" class="primary" data-action="voice-confirm-complete">回答完毕</button></div>';dialog.addEventListener('cancel',()=>{voice.continueAnswer().catch(e=>toast(e.message));});document.body.append(dialog);}
-  document.getElementById('voice-silence-preview').textContent=answerDraft;
+  if(!dialog){dialog=document.createElement('dialog');dialog.id='voice-silence-dialog';dialog.className='iv-confirm-dialog';dialog.setAttribute('aria-labelledby','silence-title');dialog.setAttribute('aria-describedby','voice-confirm-description');dialog.innerHTML='<div class="iv-confirm-icon" aria-hidden="true">✓</div><h2 id="silence-title"></h2><p id="voice-confirm-description"></p><div class="iv-confirm-preview" id="voice-silence-preview"></div><div class="actions"><button type="button" class="primary" data-action="voice-continue" autofocus>继续补充</button><button type="button" class="secondary" data-action="voice-confirm-complete"></button></div>';dialog.addEventListener('cancel',()=>{continueReviewedAnswer().catch(e=>toast(e.message));});document.body.append(dialog);}
+  $('#silence-title').textContent=review.reason==='silence'?'还想继续补充吗？':'确认提交本题回答？';
+  $('#voice-confirm-description').textContent=(review.reason==='silence'?'一段时间没有新的语音。':'')+'回答内容已保留，尚未提交。点击“继续补充”可返回本题接着回答。';
+  dialog.querySelector('[data-action="voice-confirm-complete"]').textContent=review.finalStage?'提交并生成复盘':'提交并进入下一环节';
+  document.getElementById('voice-silence-preview').textContent=review.text;
   if(!dialog.open)dialog.showModal();
+  return true;
 }
 async function submitSpokenAnswer({finish=false}={}){
   closeVoiceConfirmation();completionIntent=true;
@@ -242,7 +274,7 @@ document.addEventListener('change',e=>{
 });
 document.addEventListener('input',e=>{if(e.target.matches('#answer-form textarea')){answerDraft=e.target.value;voice.setDraft(answerDraft);if(!answerStarted)answerStarted=Date.now();}});
 document.addEventListener('toggle',e=>{if(e.target.matches?.('[data-text-assist]')&&e.target.open&&voiceState.recognitionSupported!==false){const box=e.target.querySelector('textarea');if(box)box.readOnly=true;voice.stop().catch(error=>toast(error.message)).finally(()=>{if(box)box.readOnly=false;});}},true);
-document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;run(async()=>{
+document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;if(form.id==='answer-form'){if(!busy){voice.setDraft(form.elements.answer.value);answerConfirmation.open('manual').catch(error=>toast(error.message));}return;}run(async()=>{
   if(form.id==='setup-form'){
     captureDraft();const materialIds=Object.values(selected).filter(id=>materials.some(m=>m.id===id));
     if(draft.portfolioNotes?.trim()){
@@ -250,14 +282,16 @@ document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;ru
     }
     const profile=await post('/api/profiles',{...draft,materialIds,stages:draft.stages.map(id=>({id,minutes:draft['minutes-'+id]})),officialRubric:draft.official.length?draft.official:null});
     toast('正在生成本场面试计划…');current=await post('/api/sessions',{profileId:profile.id});localStorage.setItem('onstage.active',current.id);answerDraft='';await refresh();location.hash='interview';page='interview';
-  }else if(form.id==='answer-form'){
-    voice.setDraft(form.elements.answer.value);await submitSpokenAnswer();
   }else if(form.id==='source-form'){await post('/api/sources',Object.fromEntries(new FormData(form)));await refresh();toast('来源已保存，核验状态为待核验');}
   else if(form.id==='search-form'){const r=await post('/api/search',Object.fromEntries(new FormData(form)));searchResults=r.results;toast(`找到 ${searchResults.length} 条待核验线索`);}
 });});
 document.addEventListener('click',e=>{
   const target=e.target.closest('button');if(!target||(target.form&&target.type==='submit'))return;
   if(target.hasAttribute('data-shell-control'))return;
+  if(target.dataset.deleteSession){showDeleteConfirmation(target.dataset.deleteSession);return;}
+  if(target.hasAttribute('data-delete-cancel')){if(!deletingSession)$('#delete-session-dialog')?.close();return;}
+  if(target.dataset.deleteConfirm){deleteConfirmedSession(target.dataset.deleteConfirm);return;}
+  if(target.dataset.action==='report-history'){current=null;localStorage.removeItem('onstage.active');render();return;}
   if(target.dataset.action==='camera'&&page==='interview'){if(!busy)toggleCamera().catch(e=>toast(e.message));return;}
   if(target.dataset.selfCamera){const action=target.dataset.selfCamera;if(action==='close')selfCamera.close().catch(e=>toast(e.message));else selfCamera.setView(action==='minimize'?'collapsed':action==='expand'?'expanded':'normal');return;}
   if(['voice-start','voice-repeat','voice-toggle','voice-continue'].includes(target.dataset.action)){
@@ -265,12 +299,13 @@ document.addEventListener('click',e=>{
     const action=target.dataset.action;
     if(action==='voice-start'){const continuing=!!answerDraft.trim();speechConsent=true;const consent=$('#speech-consent');if(consent)consent.checked=true;syncVoice().then(()=>continuing?voice.listen():voice.begin()).catch(e=>toast(e.message));}
     else if(action==='voice-repeat')voice.repeatQuestion().catch(e=>toast(e.message));
-    else if(action==='voice-continue'){closeVoiceConfirmation();voice.continueAnswer().catch(e=>toast(e.message));}
+    else if(action==='voice-continue')continueReviewedAnswer().catch(e=>toast(e.message));
     else if(['listening','connecting'].includes(voiceState.phase))voice.stop().catch(e=>toast(e.message));
     else{speechConsent=true;syncVoice().then(()=>voice.listen()).catch(e=>toast(e.message));}
     return;
   }
-  if(['voice-complete','voice-confirm-complete'].includes(target.dataset.action)){run(()=>submitSpokenAnswer());return;}
+  if(target.dataset.action==='voice-complete'){if(!busy)answerConfirmation.open('manual').catch(e=>toast(e.message));return;}
+  if(target.dataset.action==='voice-confirm-complete'){run(()=>answerConfirmation.confirm());return;}
   if(target.hasAttribute('data-jump-stage')){revealReviewTarget(document.getElementById(stageReviewId(target.dataset.jumpStage)));return;}
   if(target.hasAttribute('data-jump-overview')){revealReviewTarget(document.getElementById('stage-performance'));return;}
   if(target.dataset.jumpAnswer){revealReviewTarget(document.getElementById('answer-'+target.dataset.jumpAnswer));return;}
