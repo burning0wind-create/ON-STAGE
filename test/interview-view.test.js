@@ -96,6 +96,48 @@ test('动态标签、回答、材料与提示全部转义；音频状态更新�
   updateInterviewVoice(root,{phase:'ready'},{speechConsent:true});assert.equal(nodes['#voice-toggle'].hidden,true);assert.equal(nodes['#voice-start'].hidden,false);
 });
 
+test('语音连接错误明确区分重试与继续，内联提供文字回答并保留草稿',()=>{
+  const control=answerControlState({phase:'error',errorCode:'network',speechConsent:true,draft:'已有回答'});
+  assert.equal(control.startLabel,'重试语音连接');assert.equal(control.startAction,'voice-toggle');assert.equal(control.status,'语音转写暂不可用');
+  assert.equal(answerControlState({phase:'error'}).startLabel,'继续回答');
+  const html=renderInterview(session(),{answerDraft:'已有回答与末句',speechConsent:true,voiceState:{phase:'error',errorCode:'network',message:'连接失败'}});
+  assert.match(html,/id="voice-error"[^>]*role="status" >/);assert.match(html,/id="voice-error-title">语音转写连接失败/);
+  assert.match(html,/id="voice-start"  >重试语音连接/);assert.match(html,/id="voice-use-text" data-action="voice-use-text">使用文字回答/);
+  assert.match(html,/id="text-assist" data-text-assist open/);assert.match(html,/>已有回答与末句<\/textarea>/);
+  assert.match(html,/已有内容已保留，尚未提交/);assert.match(html,/模型已连接不代表语音转写可用/);assert.doesNotMatch(html,/连接已恢复|语音已恢复/);
+  const empty=renderInterview(session(),{voiceState:{phase:'error',errorCode:'network'}});assert.match(empty,/本题尚未提交。可以先用文字回答/);assert.doesNotMatch(empty,/已有内容已保留/);
+  const safe=renderInterview(session(),{voiceState:{phase:'error',errorCode:'unknown',message:'<script>错误</script>'}});assert.match(safe,/&lt;script&gt;错误&lt;\/script&gt;/);assert.doesNotMatch(safe,/<script>/);
+});
+
+test('语音错误实时展开文字辅助，面板恢复后隐藏且不重建或覆盖输入框',()=>{
+  const selectors=['#voice-state-label','#speech-status','#voice-start','#voice-toggle','#voice-complete','#voice-repeat','#voice-placeholder','#speech-consent','#text-assist','#voice-error','#voice-error-title','#voice-error-description','#voice-error-preservation','#voice-use-text'];
+  const nodes=Object.fromEntries(selectors.map(id=>[id,{dataset:{}}]));
+  const textarea={value:'仍在编辑的回答',selectionStart:3,selectionEnd:5};nodes['#answer-form textarea']=textarea;
+  const root={querySelector:id=>nodes[id]??null,querySelectorAll:()=>[]};
+  updateInterviewVoice(root,{phase:'error',errorCode:'network',message:'一段很长的网络错误说明',finalText:'不得覆盖草稿'},{speechConsent:true});
+  assert.equal(nodes['#speech-status'].textContent,'语音转写暂不可用');assert.equal(nodes['#voice-start'].textContent,'重试语音连接');
+  assert.equal(nodes['#voice-error'].hidden,false);assert.equal(nodes['#voice-error-title'].textContent,'语音转写连接失败');assert.equal(nodes['#text-assist'].open,true);
+  assert.match(nodes['#voice-error-preservation'].textContent,/已有内容已保留/);assert.equal(nodes['#voice-complete'].disabled,false);
+  assert.equal(root.querySelector('#answer-form textarea'),textarea);assert.equal(textarea.value,'仍在编辑的回答');assert.equal(textarea.selectionStart,3);assert.equal(textarea.selectionEnd,5);
+  updateInterviewVoice(root,{phase:'connecting',errorCode:''},{speechConsent:true});assert.equal(nodes['#voice-error'].hidden,true);assert.equal(nodes['#voice-toggle'].textContent,'取消连接');
+  updateInterviewVoice(root,{phase:'listening',errorCode:''},{speechConsent:true});assert.equal(nodes['#voice-error'].hidden,true);assert.equal(nodes['#text-assist'].open,true);assert.equal(textarea.value,'仍在编辑的回答');
+  updateInterviewVoice(root,{phase:'error',errorCode:'network'},{speechConsent:true,paused:true});assert.equal(nodes['#voice-error'].hidden,true);assert.equal(nodes['#voice-use-text'].disabled,true);
+});
+
+test('当前转写语言在英语与中文环节明确显示，实时更新不把未知语言误标为中文',()=>{
+  const s=session();s.stageIndex=0;assert.match(renderInterview(s),/id="voice-language">识别语言：英语/);
+  s.profile.stages=[{id:'custom',name:'英文问答',language:'en-GB'}];s.stageIndex=0;assert.match(renderInterview(s),/id="voice-language">识别语言：英语/);
+  assert.match(renderInterview(session()),/id="voice-language">识别语言：中文/);
+  const language={textContent:'识别语言：中文'},root={querySelector:selector=>selector==='#voice-language'?language:null,querySelectorAll:()=>[]};
+  updateInterviewVoice(root,{phase:'listening',language:'en-US'});assert.equal(language.textContent,'识别语言：英语');
+  updateInterviewVoice(root,{phase:'ready'});assert.equal(language.textContent,'识别语言：英语');
+  updateInterviewVoice(root,{phase:'listening',language:'zh-CN'});assert.equal(language.textContent,'识别语言：中文');
+  updateInterviewVoice(root,{phase:'ready',language:'unavailable'});assert.equal(language.textContent,'识别语言：中文');
+  const unsupported=renderInterview(s,{voiceState:{phase:'error',errorCode:'language-not-supported'}});
+  assert.match(unsupported,/id="voice-error-title">当前转写语言不可用/);assert.match(unsupported,/当前浏览器语音服务不支持本环节的转写语言/);
+  const network=renderInterview(s,{voiceState:{phase:'error',errorCode:'network'}});assert.match(network,/id="voice-error-title">语音转写连接失败/);assert.doesNotMatch(network,/不支持本环节的转写语言/);
+});
+
 test('自拍小窗默认关闭且不伪造画面，授权连接后才展示静音实时视频与三个操作',()=>{
   const off=renderSelfCamera();assert.match(off,/data-camera-status="off"[^>]*hidden/);assert.doesNotMatch(off,/<video|<img/);
   for(const status of ['requesting','error'])assert.doesNotMatch(renderSelfCamera({status}),/<video/);

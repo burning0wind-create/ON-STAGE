@@ -51,7 +51,7 @@ async function submit(save){
     await request(save?'/api/model-settings':'/api/model-settings/test',values);
     if(save){
       field('apiKey').value='';field('apiKey').required=false;field('apiKey').placeholder='已保存，留空保持现有密钥';
-      state.textContent='评分模型已连接';document.querySelector('#runtime-mode').textContent='模型已连接';
+      state.textContent='评分模型已连接';document.querySelector('#runtime-mode').textContent='问答模型已连接';
       window.dispatchEvent(new CustomEvent('onstage-model-configured',{detail:{mode:'llm'}}));
       showResult('已启用。后续回答将进行评分，历史回答暂不自动补评。');
     }else showResult('连接成功，保存后启用评分。');

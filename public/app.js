@@ -29,9 +29,10 @@ let camera=null,mic=null,speechStarted=0,speechConsent=false,toastTimer,busy=fal
 let voiceState={phase:'idle',finalText:'',interimText:''},completionIntent=false;
 const voice=new VoiceInterview({
   onState:state=>{voiceState=state;if(state.phase==='listening'&&!speechStarted)speechStarted=Date.now();updateVoiceUI();},
-  onTranscript:state=>{answerDraft=state.text;const box=$('#answer-form textarea');if(box)box.value=answerDraft;updateVoiceUI();},
+  onTranscript:state=>{answerDraft=state.text;const box=$('#answer-form textarea');if(box&&box.value!==answerDraft)box.value=answerDraft;updateVoiceUI();},
   onSilencePrompt:()=>{if(!busy&&!completionIntent)answerConfirmation.open('silence').catch(e=>toast(e.message));},
-  onError:error=>toast(typeof error==='string'?error:error?.message??'语音暂不可用，可重试或使用文字辅助。')
+  // Speech failures are shown persistently beside the answer, rather than repeated toasts on each retry.
+  onError:error=>{if(typeof error==='string')toast(error);}
 });
 const answerConfirmation=new AnswerConfirmation({voice,getContext:()=>({sessionId:current?.id,questionId:current?.turns?.at(-1)?.role==='interviewer'?current.turns.at(-1).id:null,active:page==='interview'&&current?.status==='active',consent:speechConsent,finalStage:current?.stageIndex>=((current?.profile?.stages?.length??1)-1)}),onShow:showVoiceConfirmation,onHide:()=>{const dialog=$('#voice-silence-dialog');if(dialog?.open)dialog.close();},onSubmit:()=>submitSpokenAnswer(),onError:toast});
 async function api(url,options={}) {
@@ -108,7 +109,7 @@ function devices(){return heading('设备与环境','','<a href="#setup" class="
   <div class="device-audio"><label class="checkline"><input id="speech-consent" type="checkbox" ${speechConsent?'checked':''}><span>启用浏览器语音转写（音频可能由浏览器服务商处理）</span></label><button data-action="mic-test" class="small secondary">${mic?'结束设备检查':'检查麦克风'}</button></div>`;}
 function interview(){
   if(!current||current.status==='complete')return heading('模拟面试','')+'<section class="card empty"><h2>准备好，开始你的下一场</h2><p>选择院校专业与材料，进入语音模拟面试。</p><a class="button" href="#setup">新建面试</a></section>';
-  return heading('模拟面试',esc(targetLabel(current.profile))+' / 第 '+current.profile.attempt+' 次',badge(current.mode==='demo'?'流程演示 / 暂不评分':'模型已连接')+' <span class="timer" id="elapsed">00:00</span>')+renderInterview(current,{config,answerDraft,speechConsent,camera:multimodal.state.camera,voiceState,selfCamera:selfCamera.state});
+  return heading('模拟面试',esc(targetLabel(current.profile))+' / 第 '+current.profile.attempt+' 次',badge(current.mode==='demo'?'流程演示 / 暂不评分':'问答模型已连接')+' <span class="timer" id="elapsed">00:00</span>')+renderInterview(current,{config,answerDraft,speechConsent,camera:multimodal.state.camera,voiceState,selfCamera:selfCamera.state});
 }
 
 function legacyReports(){
@@ -179,7 +180,17 @@ function render(){
 }
 function navigate(){captureDraft();if($('#answer-form')&&!busy&&!completionIntent&&current?.turns?.at(-1)?.role==='interviewer')answerDraft=$('#answer-form textarea').value;closeVoiceConfirmation();const previousPage=page;page=location.hash.slice(1)||'home';if(!labels[page])page='home';if(previousPage==='interview'&&page!=='interview')selfCamera.close().catch(e=>toast(e.message));render();window.scrollTo({top:0,behavior:'instant'});}
 async function refresh(){[materials,sessions,sources,examLibrary]=await Promise.all([api('/api/materials'),api('/api/sessions'),api('/api/sources'),api('/api/exam-library')]);}
-async function run(fn){if(busy)return;busy=true;document.body.classList.add('busy');document.querySelectorAll('button:not([data-shell-control])').forEach(b=>b.disabled=true);try{await fn();}catch(e){toast(e.message);}finally{busy=false;document.body.classList.remove('busy');render();}}
+async function run(fn){
+  if(busy)return;busy=true;document.body.classList.add('busy');
+  // Dialogs live outside #app and survive render(). Release only the locks this operation acquired.
+  const locked=[...document.querySelectorAll('button:not([data-shell-control]):not(:disabled)')];
+  locked.forEach(button=>button.disabled=true);
+  try{await fn();}catch(e){toast(e.message);}finally{
+    busy=false;document.body.classList.remove('busy');
+    for(const button of locked)if(button.isConnected)button.disabled=false;
+    render();
+  }
+}
 async function upload(input){captureDraft();const kind=input.dataset.upload,file=input.files[0];if(!file)return;const form=new FormData();form.append('file',file);form.append('kind',kind);if(kind==='portfolio'&&draft.portfolioNotes)form.append('suppliedText',draft.portfolioNotes);toast('正在读取材料…');const m=await api('/api/materials',{method:'POST',body:form});materials.push(m);selected[kind]=m.id;if(kind==='rules')draft.rulesText=m.text;if(kind==='rubric')draft.rubricText=m.text;persist();toast(m.status==='needs_text'?'已保存原件，请在下方补充可读取的文字内容':'材料已保存');}
 function updateVoiceUI(){
   if(page!=='interview')return;
@@ -232,7 +243,10 @@ function showVoiceConfirmation(review){
   $('#voice-confirm-description').textContent=(review.reason==='silence'?'一段时间没有新的语音。':'')+'回答内容已保留，尚未提交。点击“继续补充”可返回本题接着回答。';
   dialog.querySelector('[data-action="voice-confirm-complete"]').textContent=review.finalStage?'提交并生成复盘':'提交并进入下一环节';
   document.getElementById('voice-silence-preview').textContent=review.text;
+  // A prior save may have locked this persistent dialog; opening a fresh review is always interactive.
+  dialog.querySelectorAll('button').forEach(button=>button.disabled=false);
   if(!dialog.open)dialog.showModal();
+  dialog.querySelector('[data-action="voice-continue"]').focus();
   return true;
 }
 async function submitSpokenAnswer({finish=false}={}){
@@ -273,7 +287,7 @@ document.addEventListener('change',e=>{
   if(e.target.closest('#setup-form'))captureDraft();
 });
 document.addEventListener('input',e=>{if(e.target.matches('#answer-form textarea')){answerDraft=e.target.value;voice.setDraft(answerDraft);if(!answerStarted)answerStarted=Date.now();}});
-document.addEventListener('toggle',e=>{if(e.target.matches?.('[data-text-assist]')&&e.target.open&&voiceState.recognitionSupported!==false){const box=e.target.querySelector('textarea');if(box)box.readOnly=true;voice.stop().catch(error=>toast(error.message)).finally(()=>{if(box)box.readOnly=false;});}},true);
+document.addEventListener('toggle',e=>{if(e.target.matches?.('[data-text-assist]')&&e.target.open&&voiceState.recognitionSupported!==false&&['speaking','connecting','listening'].includes(voiceState.phase)){const box=e.target.querySelector('textarea');if(box)box.readOnly=true;voice.stop().catch(error=>toast(error.message)).finally(()=>{if(box)box.readOnly=false;});}},true);
 document.addEventListener('submit',e=>{e.preventDefault();const form=e.target;if(form.id==='answer-form'){if(!busy){voice.setDraft(form.elements.answer.value);answerConfirmation.open('manual').catch(error=>toast(error.message));}return;}run(async()=>{
   if(form.id==='setup-form'){
     captureDraft();const materialIds=Object.values(selected).filter(id=>materials.some(m=>m.id===id));
@@ -294,6 +308,10 @@ document.addEventListener('click',e=>{
   if(target.dataset.action==='report-history'){current=null;localStorage.removeItem('onstage.active');render();return;}
   if(target.dataset.action==='camera'&&page==='interview'){if(!busy)toggleCamera().catch(e=>toast(e.message));return;}
   if(target.dataset.selfCamera){const action=target.dataset.selfCamera;if(action==='close')selfCamera.close().catch(e=>toast(e.message));else selfCamera.setView(action==='minimize'?'collapsed':action==='expand'?'expanded':'normal');return;}
+  if(target.dataset.action==='voice-use-text'){
+    if(!busy)voice.stop().then(()=>{const assist=$('#text-assist');if(assist)assist.open=true;$('#answer-form textarea')?.focus();}).catch(error=>toast(error.message));
+    return;
+  }
   if(['voice-start','voice-repeat','voice-toggle','voice-continue'].includes(target.dataset.action)){
     if(busy)return;
     const action=target.dataset.action;
@@ -346,4 +364,4 @@ setInterval(async()=>{
 window.addEventListener('hashchange',navigate);
 window.addEventListener('beforeunload',()=>{captureDraft();camera?.getTracks().forEach(t=>t.stop());mic?.getTracks().forEach(t=>t.stop());voice.destroy();selfCamera.destroy();});
 setInterval(()=>{const timer=$('#elapsed');if(timer&&current){const sec=Math.floor((current.activeMs??0)/1000+(current.status==='active'?(Date.now()-Date.parse(current.lastResumedAt??current.createdAt))/1000:0));timer.textContent=`${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;}},1000);
-try{config=await api('/api/config');const repaired=reconcileCatalogDraft(config.templates,draft,selected);draft=repaired.target;selected=repaired.materials;if(repaired.changed){persist();toast('目录已更新，请重新确认目标细则与评分标准');}await refresh();const active=localStorage.getItem('onstage.active');if(active){try{current=await api(`/api/sessions/${active}`);}catch{localStorage.removeItem('onstage.active');}}$('#runtime-mode').textContent=config.mode==='llm'?'模型已连接':'流程演示模式';navigate();}catch(e){$('#app').innerHTML=`<section class="card empty"><h2>暂时无法连接练习空间</h2><p>${esc(e.message)}</p></section>`;}
+try{config=await api('/api/config');const repaired=reconcileCatalogDraft(config.templates,draft,selected);draft=repaired.target;selected=repaired.materials;if(repaired.changed){persist();toast('目录已更新，请重新确认目标细则与评分标准');}await refresh();const active=localStorage.getItem('onstage.active');if(active){try{current=await api(`/api/sessions/${active}`);}catch{localStorage.removeItem('onstage.active');}}$('#runtime-mode').textContent=config.mode==='llm'?'问答模型已连接':'流程演示模式';navigate();}catch(e){$('#app').innerHTML=`<section class="card empty"><h2>暂时无法连接练习空间</h2><p>${esc(e.message)}</p></section>`;}

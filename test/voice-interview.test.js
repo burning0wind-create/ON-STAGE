@@ -55,6 +55,37 @@ test('silence only asks for confirmation after answer activity and never submits
  await f.voice.continueAnswer();assert.equal(f.voice.state.phase,'listening');assert.equal(f.engines.length,2);assert.equal(f.voice.state.finalText,'有内容的回答');f.voice.destroy();
 });
 
+test('continuing keeps the draft without repeatedly prompting on empty browser events or recognition restarts',async()=>{
+ const f=fixture();void f.ask();await flush();await f.finishQuestion();
+ const old=f.engines[0];old.result([['已有回答',true]]);await f.tick(15000);assert.equal(f.prompts.length,1);
+ await f.voice.continueAnswer();const resumed=f.engines.at(-1);
+ resumed.result([['',false]]);resumed.onspeechend();await f.tick(20000);
+ assert.equal(f.prompts.length,1);assert.equal(f.voice.state.phase,'listening');assert.equal(f.voice.state.text,'已有回答');
+ resumed.onend();await f.tick(400);f.engines.at(-1).onspeechend();await f.tick(30000);
+ assert.equal(f.prompts.length,1);assert.equal(f.voice.state.phase,'listening');
+ // A delayed callback from the stopped engine must not affect this answer segment.
+ old.result([['迟到的旧识别',true]]);old.onspeechend();await f.tick(15000);
+ assert.equal(f.prompts.length,1);assert.equal(f.voice.state.text,'已有回答');f.voice.destroy();
+});
+
+test('only new continued content rearms the silence prompt and identical result callbacks do not delay it',async()=>{
+ const f=fixture();void f.ask();await flush();await f.finishQuestion();f.engines[0].result([['前一段回答',true]]);await f.tick(15000);
+ await f.voice.continueAnswer();await f.voice.continueAnswer();assert.equal(f.engines.length,2);
+ const r=f.engines.at(-1);r.result([['补充研究方法',true]]);await f.tick(10000);
+ r.result([['补充研究方法',true]]);await f.tick(5000);
+ assert.equal(f.prompts.length,2);assert.equal(f.voice.state.phase,'confirm');assert.equal(f.voice.state.text,'前一段回答 补充研究方法');
+ await f.voice.continueAnswer();f.engines.at(-1).onspeechend();await f.tick(45000);
+ assert.equal(f.prompts.length,2);assert.equal(f.voice.state.text,'前一段回答 补充研究方法');f.voice.destroy();
+});
+
+test('delayed transcription cannot trigger a silence dialog while the candidate is still speaking',async()=>{
+ const f=fixture();void f.ask();await flush();await f.finishQuestion();const r=f.engines[0];
+ r.onspeechstart();r.result([['我正在继续解释设计决策',false]]);await f.tick(20000);
+ assert.equal(f.prompts.length,0);assert.equal(f.voice.state.phase,'listening');
+ r.onspeechend();await f.tick(14999);assert.equal(f.prompts.length,0);await f.tick(1);
+ assert.equal(f.prompts.length,1);assert.equal(f.voice.state.text,'我正在继续解释设计决策');f.voice.destroy();
+});
+
 test('repeat preserves existing answer and stops recognition before reading, so the question is not transcribed',async()=>{
  const f=fixture();void f.ask();await flush();await f.finishQuestion();f.engines[0].result([['My prior answer.',true]]);
  const repeat=f.voice.repeatQuestion();await flush();assert.equal(f.engines[0].stopped,true);assert.equal(f.utterances.length,2);assert.equal(f.voice.state.finalText,'My prior answer.');assert.equal(f.voice.recognition,null);
@@ -100,4 +131,32 @@ test('a later stop cancels an earlier repeat still waiting to drain recognition'
  const f=fixture();void f.ask();await flush();await f.finishQuestion();const old=f.engines[0];old.endOnStop=false;old.result([['保存回答',false]]);
  const repeat=f.voice.repeatQuestion(),stop=f.voice.stop({phase:'paused'});old.onend();await Promise.all([repeat,stop]);
  assert.equal(f.utterances.length,1);assert.equal(f.voice.state.phase,'paused');assert.equal(f.voice.state.text,'保存回答');f.voice.destroy();
+});
+
+test('English stage always uses en-US for reading and recognition, including old profiles and retries',async()=>{
+ const f=fixture();void f.ask({...f.ctx,language:'zh-CN'});await flush();assert.equal(f.utterances[0].lang,'en-US');
+ await f.finishQuestion();assert.equal(f.engines[0].lang,'en-US');assert.equal(f.voice.state.language,'en-US');
+ f.engines[0].result([['My project explored inclusive design.',true]]);await f.voice.stop();await f.voice.continueAnswer();
+ assert.equal(f.engines[1].lang,'en-US');assert.equal(f.voice.state.text,'My project explored inclusive design.');
+ void f.voice.sync({...f.ctx,questionId:'q2',stageId:'portfolio',language:'zh-CN'});await flush();await f.finishQuestion();
+ assert.equal(f.engines[2].lang,'zh-CN');assert.equal(f.voice.state.language,'zh-CN');f.voice.destroy();
+});
+
+test('network failures remain explicit and do not auto-retry, repeatedly notify, submit or lose the draft',async()=>{
+ const f=fixture();void f.ask();await flush();await f.finishQuestion();f.engines[0].result([['Existing English answer.',false]]);
+ f.engines[0].onerror({error:'network'});assert.equal(f.voice.state.errorCode,'network');assert.equal(f.voice.state.phase,'error');
+ assert.match(f.voice.state.message,/提问、评分模型.*独立连接/);assert.equal(f.errors.length,1);
+ await f.tick(60000);assert.equal(f.engines.length,1);assert.equal(f.prompts.length,0);
+ for(let i=0;i<2;i++){await f.voice.continueAnswer();assert.equal(f.voice.state.errorCode,null);f.engines.at(-1).onerror({error:'network'});await f.tick(30000);}
+ assert.equal(f.errors.length,1);assert.equal(f.voice.state.errorCode,'network');assert.equal(f.voice.state.text,'Existing English answer.');assert.equal(f.prompts.length,0);
+ await f.voice.continueAnswer();f.engines.at(-1).result([['More evidence.',true]]);f.engines.at(-1).onerror({error:'network'});
+ assert.equal(f.errors.length,2);assert.equal(f.voice.state.text,'Existing English answer. More evidence.');f.voice.destroy();
+});
+
+test('typing English corrections keeps spaces and line breaks instead of merging words on each input event',()=>{
+ const f=fixture();
+ for(const text of ['My ','My design ','My design project.\n','My design project.\n More details. ']){
+  f.voice.setDraft(text);assert.equal(f.voice.state.text,text);assert.equal(f.transcripts.at(-1).text,text);
+ }
+ f.voice.destroy();
 });

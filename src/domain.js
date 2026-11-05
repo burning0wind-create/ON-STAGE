@@ -4,7 +4,7 @@ import { SCHOOL_CATALOG } from './catalog.js';
 export const id = () => randomUUID();
 export const hash = (value) => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value)).digest('hex');
 export const STAGES = [
-  { id: 'english', name: '英语问答', minutes: 5, language: 'en', question: 'Please introduce one design project and explain a key decision you made.' },
+  { id: 'english', name: '英语问答', minutes: 5, language: 'en-US', question: 'Please introduce one design project and explain a key decision you made.' },
   { id: 'portfolio', name: '作品集答辩', minutes: 8, language: 'zh-CN', question: '请选择作品集中的一个项目，说明设计问题、你的个人贡献和最关键的设计决策。' },
   { id: 'design', name: '设计专业问答', minutes: 5, language: 'zh-CN', question: '你如何把用户研究发现转化为设计判断？请结合自己的项目说明。' },
   { id: 'ethics', name: '综合素质与设计伦理', minutes: 3, language: 'zh-CN', question: '如果作品集中使用了生成式 AI 或团队成员的成果，你会如何标注来源、说明个人贡献并处理研究伦理？' },

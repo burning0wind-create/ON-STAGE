@@ -11,7 +11,7 @@ const phaseLabel=(phase,paused)=>paused?phaseLabels.paused:phaseLabels[phase]??'
 const hasText=x=>typeof x==='string'&&x.trim().length>0;
 
 // Keep action wording identical on first render and during live speech updates.
-export function answerControlState({phase='ready',speechConsent=false,draft='',interimText='',hasSpeech=false,recognitionSupported=true,paused=false}={}){
+export function answerControlState({phase='ready',speechConsent=false,draft='',interimText='',hasSpeech=false,recognitionSupported=true,paused=false,errorCode=''}={}){
   phase=paused?'paused':phase;
   const supported=recognitionSupported!==false,resumable=!!(speechConsent||hasSpeech||hasText(draft)||hasText(interimText)||['error','confirm','paused'].includes(phase));
   const showStart=!['speaking','connecting','listening','confirm','processing','finishing'].includes(phase);
@@ -19,13 +19,33 @@ export function answerControlState({phase='ready',speechConsent=false,draft='',i
   if(!supported){status='当前浏览器不支持语音转写，请使用文字辅助';hint='可以在文字辅助中补充回答，已有内容保留。';}
   else if(phase==='listening'){status='正在聆听，可以直接继续说';hint='正在收音时可直接接着说；想暂停思考可点击“暂停回答”。';}
   else if(['ready','idle'].includes(phase)){status=resumable?'点击“继续回答”，接着补充本题':'点击“开始语音回答”，开始本题作答';hint=resumable?'还想补充？点击“继续回答”，会接着本题追加，已有内容保留。':'点击“开始语音回答”作答，之后可随时暂停或继续。';}
-  else if(phase==='error'){status='语音暂时中断，点击“继续回答”重试';hint='继续回答会接着本题追加，已有内容保留。';}
+  else if(phase==='error'){status=errorCode?'语音转写暂不可用':'语音暂时中断，点击“继续回答”重试';hint=errorCode?'可以先使用文字回答；重试语音不会提交或清除本题内容。':'继续回答会接着本题追加，已有内容保留。';}
   else if(phase==='confirm')hint='本题尚未提交，可在确认框选择“继续补充”。';
   else if(phase==='paused')hint='面试已暂停，点击“继续面试”后继续回答。';
   else if(phase==='speaking')hint='请先听考官提问，读完后即可回答。';
   else if(phase==='connecting')hint='正在连接收音，可以取消连接后稍后继续。';
   else if(['processing','finishing'].includes(phase))hint='正在保存本题，请稍候。';
-  return {resumable,showStart,showToggle:!showStart,startLabel:resumable?'继续回答':'开始语音回答',startAction:resumable?'voice-toggle':'voice-start',toggleLabel:phase==='listening'?'暂停回答':phase==='connecting'?'取消连接':'继续回答',status,hint};
+  return {resumable,showStart,showToggle:!showStart,startLabel:phase==='error'&&errorCode?'重试语音连接':resumable?'继续回答':'开始语音回答',startAction:resumable?'voice-toggle':'voice-start',toggleLabel:phase==='listening'?'暂停回答':phase==='connecting'?'取消连接':'继续回答',status,hint};
+}
+
+function voiceErrorState(state,hasAnswer){
+  const visible=state.phase==='error'&&!!state.errorCode;
+  const errors={
+    network:['语音转写连接失败','浏览器语音服务暂时未连通，当前无法把声音转换为文字。'],
+    'not-allowed':['麦克风尚未授权','请在浏览器中允许使用麦克风后重试，也可以直接输入本题回答。'],
+    'service-not-allowed':['浏览器语音服务不可用','当前浏览器未能使用语音转写服务，可以换用支持语音转写的浏览器或先用文字回答。'],
+    'audio-capture':['未能使用麦克风','请检查麦克风是否连接、是否被其他程序占用，也可以先用文字回答。'],
+    'no-speech':['尚未识别到语音','没有识别到新的回答。请检查麦克风后重试，或在下方输入文字。'],
+    'language-not-supported':['当前转写语言不可用','当前浏览器语音服务不支持本环节的转写语言，可以先用文字回答。'],
+    'start-timeout':['语音连接超时','浏览器尚未建立语音转写连接，可以检查语音服务后重试，或先用文字回答。']
+  };
+  const [title,description]=errors[state.errorCode]??['语音转写暂不可用',state.message||'语音转写未能启动，可以重试连接或先用文字回答。'];
+  return {visible,title,description,preservation:hasAnswer?'本题已有内容已保留，尚未提交。可以在下方文字回答区接着补充。':'本题尚未提交。可以先用文字回答，或检查语音连接后重试。'};
+}
+
+function renderVoiceError(state,hasAnswer){
+  const error=voiceErrorState(state,hasAnswer);
+  return `<section class="iv-voice-error" id="voice-error" aria-labelledby="voice-error-title" role="status" ${error.visible?'':'hidden'}><h4 id="voice-error-title">${esc(error.title)}</h4><p id="voice-error-description">${esc(error.description)}</p><p class="iv-voice-service-note">语音转写与考官提问、内容评分使用的模型接口相互独立；模型已连接不代表语音转写可用。</p><p class="iv-voice-draft-preserved" id="voice-error-preservation">${esc(error.preservation)}</p><button type="button" class="secondary" id="voice-use-text" data-action="voice-use-text">使用文字回答 <span aria-hidden="true">↓</span></button></section>`;
 }
 
 const cameraIcons={
@@ -95,7 +115,7 @@ export function renderInterview(s,{config={},answerDraft='',speechConsent=false,
   const finalText=hasText(interim)&&typeof voiceState.finalText==='string'?voiceState.finalText:draft;
   const safeImage=imagePath===undefined?persona.image:[...Object.values(personas).map(p=>p.image),'/assets/examiner.webp'].includes(imagePath)?imagePath:'/assets/examiner.webp';
   const canComplete=!paused&&!overLimit&&!['speaking','connecting','processing','finishing'].includes(phase)&&(hasText(draft)||hasText(interim));
-  const controls=answerControlState({phase,speechConsent,draft,interimText:interim,hasSpeech:voiceState.hasSpeech,recognitionSupported:supported,paused}),isListening=phase==='listening';
+  const controls=answerControlState({phase,speechConsent,draft,interimText:interim,hasSpeech:voiceState.hasSpeech,recognitionSupported:supported,paused,errorCode:voiceState.errorCode}),isListening=phase==='listening';
   const nextHint=s.stageIndex<stages.length-1?'回答完毕后，确认提交才进入下一环节。':'回答完毕后，确认提交才生成本场复盘。';
   const previewState=cameraState(selfCamera),previewMessage=cameraStatus(previewState);
   return `<div class="iv-experience" id="interview-experience" data-voice-phase="${esc(phase)}">
@@ -111,13 +131,14 @@ export function renderInterview(s,{config={},answerDraft='',speechConsent=false,
     </div>
     <section class="iv-conversation" aria-label="当前面试对话"><div class="iv-question-card"><div class="iv-conversation-heading"><span class="iv-kicker">考官提问</span><span>${stage.language?.startsWith('en')?'ENGLISH':'中文'}</span></div><p class="iv-current-question" lang="${stage.language?.startsWith('en')?'en':'zh-CN'}">${esc(question?.content??'正在准备本题问题…')}</p></div>
       ${compactInterviewProgress(s)}
-      ${answered?`<div class="iv-answer-saved"><span class="iv-save-check" aria-hidden="true">✓</span><h3>${last.skipped?'本题已跳过':'回答已保存'}</h3><p>${last.skipped?'你可以继续下一环节，或在本环节追加练习。':'本题内容已记录。继续对话，完整评价将在面试后呈现。'}</p><div class="iv-recovery-actions"><button type="button" class="primary" data-control="${s.stageIndex<stages.length-1?'next':'finish'}" ${paused?'disabled':''}>${s.stageIndex<stages.length-1?'进入下一环节 →':'结束并查看复盘'}</button><button type="button" class="secondary" data-control="followup" ${paused?'disabled':''}>本环节追加追问</button></div></div>`:`<form id="answer-form" class="iv-answer-form"><div class="iv-response-heading"><h3>你的回答</h3><span class="iv-listening-state" id="speech-status" role="status">${controls.status}</span></div>
+      ${answered?`<div class="iv-answer-saved"><span class="iv-save-check" aria-hidden="true">✓</span><h3>${last.skipped?'本题已跳过':'回答已保存'}</h3><p>${last.skipped?'你可以继续下一环节，或在本环节追加练习。':'本题内容已记录。继续对话，完整评价将在面试后呈现。'}</p><div class="iv-recovery-actions"><button type="button" class="primary" data-control="${s.stageIndex<stages.length-1?'next':'finish'}" ${paused?'disabled':''}>${s.stageIndex<stages.length-1?'进入下一环节 →':'结束并查看复盘'}</button><button type="button" class="secondary" data-control="followup" ${paused?'disabled':''}>本环节追加追问</button></div></div>`:`<form id="answer-form" class="iv-answer-form"><div class="iv-response-heading"><div class="iv-response-title"><h3>你的回答</h3><span class="iv-recognition-language" id="voice-language">识别语言：${stage.id==='english'||stage.language?.toLowerCase().startsWith('en')?'英语':'中文'}</span></div><span class="iv-listening-state" id="speech-status" role="status">${controls.status}</span></div>
       <div class="iv-live-transcript ${hasText(draft)||hasText(interim)?'has-content':''}" id="voice-transcript" aria-label="语音回答实时转写"><span class="iv-transcript-placeholder" id="voice-placeholder" ${hasText(draft)||hasText(interim)?'hidden':''}>${isListening?'正在听，请开始你的回答…':'考官提问后，在这里看见你的回答。'}</span><span id="voice-final">${esc(finalText)}</span><span id="voice-interim" class="iv-interim">${esc(interim)}</span><span class="iv-transcript-caret" aria-hidden="true"></span></div>
+      ${renderVoiceError({...voiceState,phase},hasText(draft)||hasText(interim))}
       <div class="iv-voice-actions"><button type="button" class="primary" data-action="${controls.startAction}" id="voice-start" ${!controls.showStart?'hidden':''} ${paused||!supported?'disabled':''}>${controls.startLabel}</button><button type="button" class="secondary" data-action="voice-toggle" id="voice-toggle" ${!controls.showToggle?'hidden':''} ${paused||['speaking','confirm','processing','finishing'].includes(phase)||!supported?'disabled':''}>${controls.toggleLabel}</button><button type="button" class="primary iv-answer-complete" data-action="voice-complete" id="voice-complete" ${!canComplete?'disabled':''}>回答完毕 <span aria-hidden="true">→</span></button></div>
       <p class="iv-draft-limit" id="voice-draft-limit" role="alert" ${overLimit?'':'hidden'}>回答已超过 20,000 字，内容已完整保留。请在文字辅助中精简后提交。</p>
       <p class="iv-complete-hint" id="voice-continuation-hint" data-submit-hint="${esc(nextHint)}">${esc(controls.hint)} ${nextHint}</p>
       <label class="iv-speech-consent"><input id="speech-consent" type="checkbox" ${speechConsent?'checked':''} ${paused?'disabled':''}><span>启用实时语音转写<span>音频可能由浏览器语音服务商处理。</span></span></label>
-      <details class="iv-text-assist" id="text-assist" data-text-assist ${!supported||overLimit?'open':''}><summary>文字辅助 <span>查看或修正转写</span></summary><label class="field"><span>补充或修正你的回答</span><textarea class="answer-box" name="answer" id="answer-text" maxlength="20000" aria-describedby="voice-draft-limit" ${paused?'disabled':''} placeholder="可在这里修正转写，或在语音不可用时输入回答。">${esc(draft)}</textarea></label><div class="iv-text-actions"><button type="submit" class="secondary" data-voice-lock ${paused||overLimit||['processing','finishing'].includes(phase)?'disabled':''}>完成本题，确认提交</button><button type="button" class="ghost" data-control="skip" data-voice-lock ${paused||['processing','finishing'].includes(phase)?'disabled':''}>跳过本题</button></div></details>
+      <details class="iv-text-assist" id="text-assist" data-text-assist ${!supported||overLimit||phase==='error'&&voiceState.errorCode?'open':''}><summary>文字辅助 <span>查看或修正转写</span></summary><label class="field"><span>补充或修正你的回答</span><textarea class="answer-box" name="answer" id="answer-text" maxlength="20000" aria-describedby="voice-draft-limit" ${paused?'disabled':''} placeholder="可在这里修正转写，或在语音不可用时输入回答。">${esc(draft)}</textarea></label><div class="iv-text-actions"><button type="submit" class="secondary" data-voice-lock ${paused||overLimit||['processing','finishing'].includes(phase)?'disabled':''}>完成本题，确认提交</button><button type="button" class="ghost" data-control="skip" data-voice-lock ${paused||['processing','finishing'].includes(phase)?'disabled':''}>跳过本题</button></div></details>
       </form>`}
       <details class="iv-history"><summary>本场对话记录 <span>${turns.filter(t=>t.role==='candidate').length} 次回应</span></summary><div class="iv-history-turns">${turns.map(t=>`<article class="iv-history-turn ${t.role==='candidate'?'is-candidate':''}"><span>${t.role==='candidate'?'你':'考官'} · ${esc(stages.find(st=>st.id===t.stageId)?.name??config.stages?.find(st=>st.id===t.stageId)?.name??'面试对话')}</span><p>${esc(t.skipped?'本题已跳过。':t.content)}</p></article>`).join('')}</div></details>
     </section></div></div>`;
@@ -129,10 +150,13 @@ export function updateInterviewVoice(root,state={}, {speechConsent=false,paused=
   if(root.id==='interview-experience')root.dataset.voicePhase=phase;
   for(const node of root.querySelectorAll('#interview-experience,#interview-scene'))node.dataset.voicePhase=phase;
   const label=root.querySelector('#voice-state-label');if(label)label.textContent=phaseLabel(phase,paused);
+  const language=root.querySelector('#voice-language'),languageCode=typeof state.language==='string'?state.language.toLowerCase():'';
+  if(language&&/^(en|zh)(-|$)/.test(languageCode))language.textContent='识别语言：'+(languageCode.startsWith('en')?'英语':'中文');
   const speaking=phase==='speaking',connecting=phase==='connecting',confirming=phase==='confirm',finishing=phase==='finishing'||phase==='processing';
   const draft=root.querySelector('#answer-form textarea')?.value??state.finalText??'',hasAnswer=hasText(draft)||hasText(state.interimText),overLimit=draft.length>20000;
-  const controls=answerControlState({phase,speechConsent,draft,interimText:state.interimText,hasSpeech:state.hasSpeech,recognitionSupported:supported,paused});
-  const status=root.querySelector('#speech-status');if(status)status.textContent=phase==='listening'?controls.status:state.message||controls.status;
+  const controls=answerControlState({phase,speechConsent,draft,interimText:state.interimText,hasSpeech:state.hasSpeech,recognitionSupported:supported,paused,errorCode:state.errorCode});
+  const status=root.querySelector('#speech-status');if(status)status.textContent=['listening','error'].includes(phase)?controls.status:state.message||controls.status;
+  const error=voiceErrorState({...state,phase},hasAnswer),panel=root.querySelector('#voice-error');if(panel){panel.hidden=!error.visible;for(const [id,text] of [['#voice-error-title',error.title],['#voice-error-description',error.description],['#voice-error-preservation',error.preservation]]){const node=root.querySelector(id);if(node)node.textContent=text;}}
   const hint=root.querySelector('#voice-continuation-hint');if(hint)hint.textContent=controls.hint+' '+(hint.dataset?.submitHint??'');
   const start=root.querySelector('#voice-start');if(start){start.hidden=!controls.showStart;start.disabled=paused||!supported;start.textContent=controls.startLabel;if(start.dataset)start.dataset.action=controls.startAction;}
   const toggle=root.querySelector('#voice-toggle');if(toggle){toggle.hidden=!controls.showToggle;toggle.disabled=paused||speaking||confirming||finishing||!supported;toggle.textContent=controls.toggleLabel;}
@@ -143,5 +167,6 @@ export function updateInterviewVoice(root,state={}, {speechConsent=false,paused=
   const consent=root.querySelector('#speech-consent');if(consent){consent.checked=speechConsent;consent.disabled=paused;}
   const limit=root.querySelector('#voice-draft-limit');if(limit)limit.hidden=!overLimit;
   for(const button of root.querySelectorAll('[data-voice-lock]'))button.disabled=paused||finishing||(button.type==='submit'&&overLimit);
-  if(!supported||overLimit){const assist=root.querySelector('#text-assist');if(assist)assist.open=true;}
+  const useText=root.querySelector('#voice-use-text');if(useText)useText.disabled=paused||finishing;
+  if(!supported||overLimit||error.visible){const assist=root.querySelector('#text-assist');if(assist)assist.open=true;}
 }

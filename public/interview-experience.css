@@ -76,6 +76,8 @@ html[data-theme] .iv-session-notes h3{font-size:11px;font-weight:500;color:var(-
 .iv-save-progress>span{display:flex;align-items:center;gap:5px}.iv-save-progress strong{font-size:12px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}.iv-save-progress small{font-size:10px;color:var(--muted);margin-left:3px;font-variant-numeric:tabular-nums}
 .iv-save-dot{display:block;width:5px;height:5px;background:var(--purple);border-radius:50%;flex:none;margin-right:3px;opacity:.6}.iv-save-dot.is-working{animation:iv-presence-pulse 2s ease-in-out infinite}
 .iv-response-heading{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.iv-response-title{display:flex;align-items:baseline;gap:11px;flex-wrap:wrap}
+.iv-recognition-language{font-size:10px;line-height:1.7;color:var(--muted);white-space:nowrap}
 html[data-theme] .iv-response-heading h3{font-size:14px;font-weight:600;color:var(--ink);margin:0;line-height:1.7}
 .iv-listening-state{font-size:10px;line-height:1.7;color:var(--muted)}
 .iv-experience[data-voice-phase=listening] .iv-listening-state{color:var(--purple)}
@@ -89,6 +91,13 @@ html[data-theme] .iv-voice-actions>button{min-height:45px;font-size:13px;padding
 html[data-theme] .iv-voice-actions>.iv-answer-complete{margin-left:auto;display:flex;gap:15px;align-items:center;justify-content:center}
 html[data-theme] .iv-voice-actions>.iv-answer-complete:disabled{color:var(--muted);border-color:var(--line);background:var(--iv-soft);opacity:1}
 .iv-complete-hint{font-size:10px;color:var(--muted);line-height:1.8;margin:11px 0 18px}
+.iv-voice-error{margin:16px 0 3px;padding:16px 17px;border:1px solid color-mix(in srgb,var(--ux-warning,#a66a18) 32%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--ux-warning,#a66a18) 6%,var(--iv-surface));overflow-wrap:anywhere}
+html[data-theme] .iv-voice-error h4{margin:0 0 7px;font-size:14px;line-height:1.6;font-weight:600;color:var(--ink)}
+.iv-voice-error>p{margin:0 0 9px;font-size:12px;line-height:1.8;color:var(--ink)}
+.iv-voice-error>.iv-voice-service-note{font-size:11px;color:var(--muted)}
+.iv-voice-error>.iv-voice-draft-preserved{padding-top:10px;margin-top:12px;border-top:1px solid color-mix(in srgb,var(--ux-warning,#a66a18) 20%,var(--line));color:var(--muted)}
+html[data-theme] .iv-voice-error>button{display:inline-flex;align-items:center;gap:16px;min-height:40px;margin-top:3px;padding:9px 13px;border-color:var(--purple);color:var(--purple);background:var(--iv-surface);font-size:12px;font-weight:600;box-shadow:none;border-radius:9px}
+html[data-theme] .iv-voice-error>button:hover{background:var(--iv-soft)}
 .iv-draft-limit{font-size:12px;line-height:1.8;color:var(--ux-warning,#a66a18);padding:11px 13px;background:color-mix(in srgb,var(--ux-warning,#a66a18) 7%,var(--iv-surface));border:1px solid color-mix(in srgb,var(--ux-warning,#a66a18) 25%,var(--line));border-radius:9px;margin:13px 0}
 .iv-speech-consent{display:flex;gap:9px;align-items:flex-start;font-size:11px;color:var(--ink);line-height:1.6;margin:15px 0}
 .iv-speech-consent>input{margin-top:3px;flex:none}.iv-speech-consent>span>span{display:block;font-size:10px;color:var(--muted);margin-top:3px}
